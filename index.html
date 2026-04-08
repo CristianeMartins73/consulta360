@@ -1184,7 +1184,7 @@ function startConsulta() {
   document.getElementById('mapa-pname').textContent = name + (document.getElementById('s-age').value?' · '+document.getElementById('s-age').value:'');
   document.getElementById('mapa-date').textContent = new Date().toLocaleDateString('pt-PT',{day:'numeric',month:'long',year:'numeric'}) + ' · Dra. Cristiane Martins';
   document.getElementById('rec-panel').style.display = appMode==='rec' ? 'block' : 'none';
-  saveToSupabase(currentPatientId, {name, age:document.getElementById('s-age').value, tipo:document.getElementById('s-tipo').value, parent:document.getElementById('s-parent').value, phone:document.getElementById('s-phone').value, semaphores:{...curSems}, created_at: new Date().toISOString()});
+  doSave().then(()=>loadPatients());
   goPage('page-abertura');
 }
 
