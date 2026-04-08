@@ -789,8 +789,9 @@ body{background:var(--cream);color:var(--ink);font-size:16px;line-height:1.6;ove
      FOR ALL USING (auth.uid() = user_id);
    
 ═══════════════════════════════════════════════════ */
-const SUPABASE_URL = 'https://gtllrdxveaqlbnwdnhoq.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd0bGxyZHh2ZWFxbGJud2RuaG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2NDAwMzEsImV4cCI6MjA5MTIxNjAzMX0.IFbQvpyB_F9AgTRlvuTicLozb6nhsGIIfHKz94tqIf8';
+/* Credenciais carregadas em runtime via /api/config (env vars no Vercel) */
+let SUPABASE_URL = '';
+let SUPABASE_KEY = '';
 
 /* ═══ INICIALIZAÇÃO ═══ */
 let supabase = null;
@@ -812,15 +813,24 @@ let curPageIdx = 0;
 
 /* ═══ BOOT ═══ */
 window.addEventListener('load', async () => {
-  isConfigured = !SUPABASE_URL.includes('XXXXXXXX') && !SUPABASE_KEY.startsWith('eyJhbGci');
-  
+  try {
+    const r = await fetch('/api/config');
+    if(!r.ok) throw new Error('config endpoint ' + r.status);
+    const cfg = await r.json();
+    SUPABASE_URL = cfg.supabaseUrl;
+    SUPABASE_KEY = cfg.supabaseKey;
+    isConfigured = !!(SUPABASE_URL && SUPABASE_KEY);
+  } catch(e) {
+    console.error('Config load error:', e);
+    isConfigured = false;
+  }
+
   if(!isConfigured) {
     document.getElementById('config-notice').style.display = 'block';
-    // Demo mode — skip auth
     demoMode();
     return;
   }
-  
+
   try {
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     const { data: { session } } = await supabase.auth.getSession();
@@ -1359,6 +1369,18 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 
 /* ═══ AUTO-SAVE ON INPUT ═══ */
 document.addEventListener('input',e=>{if(currentPatientId&&e.target.matches('.inp,.cam-inp,.fase textarea'))scheduleSave();});
+
+/* ═══ EXPOSE HANDLERS GLOBALLY (para os onclick inline) ═══ */
+Object.assign(window, {
+  doLogin, doSignup, doLogout, toggleLoginMode,
+  showModal: openModal, openModal, closeModal,
+  newConsulta, startConsulta, finishConsulta, confirmHome,
+  goPage, prevPage, nextPage, setMode,
+  toggleRec, analyzeAI, generateWA, copyWA,
+  toggleET, resetET, manualSave,
+  ci, rp, toggleB, setSem, updateMapaNote,
+  selectPat, openPatient, deletePatient
+});
 </script>
 </body>
 </html>
