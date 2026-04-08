@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Consulta 360">
+<meta name="theme-color" content="#0D1B2A">
+<title>Consulta 360 · Dra. Cristiane</title>
+
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+<style>
+/* ══════════════════════════════════════════════
+   SUPABASE CONFIG — LEO PREENCHE AQUI
+   ══════════════════════════════════════════════ */
+/*
+   Depois de criar o projecto no Supabase:
+   1. Vai a supabase.com → teu projecto → Settings → API
+   2. Copia o "Project URL" e o "anon public" key
+   3. Cola nas variáveis abaixo em app.js (ou inline)
+*/
+
+:root{
+  --ink:#0D1B2A;--ink-m:#1C3044;--ink-l:#2C4560;
+  --gold:#C4A44A;--gold-l:#DCC078;--gold-d:#9A7E30;--gold-bg:rgba(196,164,74,.09);
+  --cream:#F7F3EC;--paper:#FAFAF7;
+  --teal:#4ABFBF;--teal-l:rgba(74,191,191,.12);
+  --sage:#5FAF8A;--sage-l:rgba(95,175,138,.12);
+  --amber:#D48A3A;--amber-l:rgba(212,138,58,.1);
+  --red:#C94040;--red-l:rgba(201,64,64,.1);
+  --border:rgba(13,27,42,.08);
+  --shadow:0 2px 16px rgba(13,27,42,.09);
+  --r:16px;--r-s:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overscroll-behavior:none;font-family:-apple-system,'DM Sans',sans-serif}
+body{background:var(--cream);color:var(--ink);font-size:16px;line-height:1.6;overflow:hidden}
+
+/* ══ SHELL ══ */
+.app{width:100%;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ══ LOGIN SCREEN ══ */
+.login-screen{
+  position:fixed;inset:0;background:var(--ink);
+  display:flex;flex-direction:column;justify-content:center;align-items:center;
+  padding:32px;z-index:1000;transition:opacity .4s ease
+}
+.login-screen.hidden{opacity:0;pointer-events:none}
+.login-logo{font-size:48px;margin-bottom:24px}
+.login-title{font-size:36px;font-weight:700;color:#fff;text-align:center;line-height:1.15;margin-bottom:8px}
+.login-title em{color:var(--gold-l);font-style:italic}
+.login-sub{font-size:15px;color:rgba(255,255,255,.45);text-align:center;margin-bottom:40px;line-height:1.7}
+.login-form{width:100%;max-width:400px;display:flex;flex-direction:column;gap:14px}
+.login-input{
+  width:100%;padding:15px 18px;border-radius:var(--r-s);border:1.5px solid rgba(255,255,255,.15);
+  background:rgba(255,255,255,.08);color:#fff;font-size:16px;font-family:inherit;outline:none;transition:.2s
+}
+.login-input:focus{border-color:var(--gold);background:rgba(255,255,255,.12)}
+.login-input::placeholder{color:rgba(255,255,255,.3)}
+.login-btn{
+  width:100%;padding:16px;border-radius:var(--r-s);border:none;
+  background:var(--gold);color:var(--ink);font-size:16px;font-weight:700;
+  font-family:inherit;cursor:pointer;transition:.2s
+}
+.login-btn:hover{background:var(--gold-l)}
+.login-btn:active{transform:scale(.97)}
+.login-btn.secondary{background:transparent;border:1.5px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);font-weight:500}
+.login-error{background:var(--red-l);border:1px solid var(--red);border-radius:var(--r-s);padding:12px 14px;font-size:13px;color:var(--red);text-align:center;display:none}
+.login-error.visible{display:block}
+.login-mode-toggle{font-size:13px;color:rgba(255,255,255,.4);text-align:center;margin-top:8px}
+.login-mode-toggle span{color:var(--gold-l);cursor:pointer;text-decoration:underline}
+.login-loading{display:none;align-items:center;justify-content:center;gap:8px;font-size:14px;color:rgba(255,255,255,.5)}
+.login-loading.visible{display:flex}
+.spin{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ══ TOP BAR ══ */
+.topbar{background:var(--ink);flex-shrink:0;display:flex;align-items:center;padding:12px 16px;gap:10px;padding-top:calc(env(safe-area-inset-top) + 12px)}
+.tb-logo{width:36px;height:36px;background:var(--gold);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.tb-title{font-size:15px;font-weight:700;color:#fff;flex:1}
+.tb-title span{display:block;font-size:10px;color:var(--gold-l);font-weight:400;letter-spacing:.5px;text-transform:uppercase;margin-top:1px}
+.tb-user{font-size:11px;color:rgba(255,255,255,.4);text-align:right;cursor:pointer}
+.tb-user strong{display:block;color:rgba(255,255,255,.7);font-size:12px}
+.tb-save{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:5px 8px;border-radius:7px;border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.35);cursor:pointer;transition:.2s}
+.tb-save.saved{color:var(--sage);border-color:rgba(95,175,138,.3)}
+.tb-save.saving{color:var(--gold-l);border-color:rgba(196,164,74,.3)}
+.tb-home{font-size:18px;cursor:pointer;padding:6px;border-radius:7px;color:rgba(255,255,255,.5);background:none;border:none}
+
+/* ══ PROGRESS ══ */
+.progress-bar{height:2px;background:rgba(255,255,255,.06);flex-shrink:0}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--gold-d),var(--gold-l));transition:width .4s}
+
+/* ══ STEP TABS ══ */
+.step-tabs{background:var(--ink-m);display:flex;overflow-x:auto;scrollbar-width:none;padding:0 10px;border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0}
+.step-tabs::-webkit-scrollbar{display:none}
+.st{padding:11px 12px;font-size:11px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;color:rgba(255,255,255,.3);border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:.2s}
+.st.active{color:var(--gold-l);border-color:var(--gold)}
+.st.done{color:rgba(95,175,138,.8)}
+.st.done::before{content:'✓ ';font-size:9px}
+
+/* ══ CONTENT ══ */
+.screen{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.page{display:none;padding:16px 16px 100px;max-width:820px;margin:0 auto}
+.page.active{display:block}
+
+/* ══ BOTTOM NAV ══ */
+.bottom-nav{background:rgba(247,243,236,.97);backdrop-filter:blur(20px);border-top:1px solid var(--border);padding:10px 16px;display:none;gap:10px;flex-shrink:0;padding-bottom:calc(env(safe-area-inset-bottom,10px) + 10px)}
+.bottom-nav.visible{display:flex}
+.btn-back-nav{flex:1;padding:14px;border-radius:var(--r-s);border:1.5px solid var(--border);background:transparent;color:var(--ink-l);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer}
+.btn-next-nav{flex:2;padding:14px;border-radius:var(--r-s);border:none;background:var(--ink);color:#fff;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer}
+.btn-next-nav.finish{background:var(--sage)}
+
+/* ══ FAB ══ */
+.fab{position:fixed;bottom:calc(env(safe-area-inset-bottom,20px) + 20px);right:20px;width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-l));box-shadow:0 4px 20px rgba(196,164,74,.4);border:none;font-size:26px;color:var(--ink);cursor:pointer;z-index:50}
+
+/* ══ PATIENT LIST ══ */
+.hero{background:var(--ink);padding:28px 16px 20px}
+.hero-eye{font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
+.hero-title{font-size:32px;font-weight:800;color:#fff;line-height:1.15;margin-bottom:6px}
+.hero-title em{color:var(--gold-l);font-style:italic}
+.hero-sub{font-size:14px;color:rgba(255,255,255,.4);line-height:1.7}
+.hero-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.hero-tag{padding:3px 10px;border-radius:100px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);font-size:11px;color:rgba(255,255,255,.4)}
+
+.stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:12px 16px}
+.stat{background:#fff;border-radius:var(--r-s);padding:12px 8px;text-align:center;box-shadow:var(--shadow)}
+.stat-num{font-size:26px;font-weight:800;color:var(--ink);line-height:1}
+.stat-lbl{font-size:10px;color:var(--ink-l);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-top:2px}
+
+.sync-badge{display:flex;align-items:center;gap:6px;margin:0 16px 10px;padding:8px 12px;border-radius:var(--r-s);font-size:12px;font-weight:600}
+.sync-badge.online{background:var(--sage-l);color:#2D7A5A;border:1px solid rgba(95,175,138,.2)}
+.sync-badge.offline{background:var(--amber-l);color:var(--amber);border:1px solid rgba(212,138,58,.2)}
+.sync-badge.syncing{background:rgba(74,191,191,.08);color:var(--teal);border:1px solid rgba(74,191,191,.2)}
+
+.plist-hdr{display:flex;align-items:center;justify-content:space-between;padding:6px 16px 8px}
+.plist-ttl{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-l)}
+.plist-search{padding:7px 12px;border-radius:var(--r-s);border:1.5px solid var(--border);background:#fff;font-size:14px;font-family:inherit;color:var(--ink);outline:none;width:160px}
+
+.pcard{background:#fff;border-radius:var(--r);margin:0 16px 10px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;box-shadow:var(--shadow);border:1px solid var(--border);transition:.15s}
+.pcard:active{transform:scale(.98);border-color:var(--gold)}
+.pcard-av{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,var(--teal-l),rgba(74,191,191,.4));display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--ink-m);flex-shrink:0}
+.pcard-info{flex:1;min-width:0}
+.pcard-name{font-size:15px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard-meta{font-size:12px;color:var(--ink-l);margin-top:2px}
+.pcard-sems{display:flex;gap:4px;margin-top:5px;flex-wrap:wrap}
+.psem{font-size:11px;padding:2px 7px;border-radius:100px;font-weight:600}
+.pg{background:var(--sage-l);color:#2D7A5A}.pa{background:var(--amber-l);color:var(--amber)}.pr{background:var(--red-l);color:var(--red)}
+.pcard-right{text-align:right;flex-shrink:0}
+.pcard-date{font-size:11px;color:var(--ink-l);margin-bottom:4px}
+
+.empty{text-align:center;padding:40px 20px;color:var(--ink-l)}
+.empty-icon{font-size:40px;margin-bottom:14px}
+.empty-title{font-size:17px;font-weight:700;color:var(--ink);margin-bottom:6px}
+
+/* ══ SETUP ══ */
+.card{background:#fff;border-radius:var(--r);border:1px solid var(--border);margin-bottom:14px;overflow:hidden}
+.ch{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--cream)}
+.ch-n{width:26px;height:26px;border-radius:7px;background:var(--ink);color:var(--gold-l);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ch-t{font-size:14px;font-weight:700;color:var(--ink);flex:1}
+.ch-b{font-size:10px;font-weight:700;padding:3px 8px;border-radius:100px}
+.b-k{background:var(--gold-bg);color:var(--gold-d)}.b-a{background:var(--red-l);color:var(--red)}
+.cb{padding:14px 16px}
+.field{margin-bottom:16px}.field:last-child{margin-bottom:0}
+.lbl{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-l);margin-bottom:6px;display:block}
+.inp{width:100%;border:1.5px solid var(--border);border-radius:var(--r-s);padding:12px 14px;font-size:16px;font-family:inherit;color:var(--ink);background:#fff;outline:none;transition:.2s;-webkit-appearance:none}
+.inp:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(196,164,74,.1)}
+.inp.ta{resize:none;min-height:80px;line-height:1.65}
+.inp.sel{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M0 0l5 7 5-7z' fill='%231C3044'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* ══ FORM HELPERS ══ */
+.rr{display:flex;flex-wrap:wrap;gap:7px;margin-top:5px}
+.rp{padding:8px 14px;border-radius:100px;border:1.5px solid var(--border);font-size:13px;font-weight:500;cursor:pointer;background:#fff;color:var(--ink-l);transition:.15s;user-select:none}
+.rp.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.rp:active{transform:scale(.95)}
+.cl{display:flex;flex-direction:column;gap:2px}
+.ci{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:7px;cursor:pointer;user-select:none;transition:.15s}
+.ci:hover{background:var(--cream)}
+.ci.checked{background:rgba(95,175,138,.08)}
+.ci.fr{border-left:2.5px solid transparent}
+.ci.fr:hover{background:var(--red-l)}
+.ci.fr.checked{background:var(--red-l);border-color:var(--red)}
+.ci-box{width:20px;height:20px;border-radius:5px;border:1.5px solid rgba(13,27,42,.18);flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:11px;color:transparent;transition:.15s}
+.ci.checked .ci-box{background:var(--sage);border-color:var(--sage);color:#fff}
+.ci.fr.checked .ci-box{background:var(--red);border-color:var(--red);color:#fff}
+.ci-text{font-size:13.5px;color:var(--ink);line-height:1.4;flex:1}
+.ci-flag{font-size:14px;flex-shrink:0;margin-top:1px}
+
+/* ══ ALERTS ══ */
+.alert{padding:12px 14px;border-radius:var(--r-s);margin-bottom:14px;font-size:13px;line-height:1.7;display:flex;gap:10px;align-items:flex-start}
+.a-gold{background:var(--gold-bg);border-left:3px solid var(--gold)}
+.a-teal{background:var(--teal-l);border-left:3px solid var(--teal)}
+.a-sage{background:var(--sage-l);border-left:3px solid var(--sage)}
+.a-red{background:var(--red-l);border-left:3px solid var(--red)}
+.a-ink{background:rgba(13,27,42,.05);border-left:3px solid var(--ink-l)}
+
+/* ══ RECORDING ══ */
+.rec{background:var(--ink);border-radius:18px;padding:20px 16px;margin-bottom:16px;position:relative;overflow:hidden}
+.rec::before{content:'';position:absolute;top:-40px;right:-40px;width:150px;height:150px;border-radius:50%;border:40px solid rgba(196,164,74,.06);pointer-events:none}
+.rec-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.rec-status{display:flex;align-items:center;gap:7px}
+.rdot{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.12);flex-shrink:0}
+.rdot.active{background:var(--red);animation:blink 1.2s infinite}
+.rdot.done{background:var(--sage)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.rlabel{font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:rgba(255,255,255,.4)}
+.rtimer{font-family:monospace;font-size:24px;color:rgba(255,255,255,.85);letter-spacing:2px}
+.rec-center{display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+.rbtn{width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:22px;transition:.2s;position:relative}
+.rbtn::before{content:'';position:absolute;inset:-6px;border-radius:50%;border:2px solid rgba(255,255,255,.1);animation:pulse 2s ease-out infinite}
+@keyframes pulse{0%{transform:scale(1);opacity:.5}100%{transform:scale(1.35);opacity:0}}
+.rbtn.idle{background:rgba(255,255,255,.1)}
+.rbtn.recording{background:var(--red);box-shadow:0 0 24px rgba(201,64,64,.4)}
+.rbtn.done{background:var(--sage)}
+.rbtn.done::before{display:none}
+.rtranscript{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:12px 14px;min-height:60px;max-height:140px;overflow-y:auto;font-size:13px;color:rgba(255,255,255,.7);line-height:1.75}
+.cursor{display:inline-block;width:2px;height:13px;background:var(--gold);animation:blink .8s infinite;vertical-align:text-bottom;margin-left:2px}
+.rec-actions{display:none;margin-top:12px;gap:10px}
+.rec-actions.visible{display:flex}
+.btn-ai{flex:1;padding:13px;border-radius:var(--r-s);border:none;background:linear-gradient(135deg,var(--gold-d),var(--gold-l));color:var(--ink);font-size:14px;font-weight:700;font-family:inherit;cursor:pointer}
+.ai-status{display:none;margin-top:10px;padding:10px;background:rgba(196,164,74,.12);border-radius:8px;font-size:12px;color:var(--gold-l);text-align:center}
+.ai-status.visible{display:block}
+
+/* ══ BEARS ══ */
+.bg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.bc{background:var(--cream);border-radius:var(--r-s);padding:12px;cursor:pointer;transition:.15s;border:1.5px solid transparent}
+.bc.flagged{background:var(--red-l);border-color:rgba(201,64,64,.25)}
+.bc.ok{background:var(--sage-l);border-color:rgba(95,175,138,.25)}
+.bc-l{font-size:24px;font-weight:800;color:var(--ink);line-height:1;margin-bottom:2px}
+.bc-n{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--ink-l);margin-bottom:4px}
+.bc-d{font-size:12px;color:var(--ink-l);line-height:1.4}
+
+/* ══ MAPA ══ */
+.mapa{background:var(--ink);border-radius:16px;padding:18px 16px;margin-bottom:14px}
+.mapa-ey{font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:4px}
+.mapa-patient{font-size:20px;font-weight:700;color:#fff;margin-bottom:3px}
+.mapa-date{font-size:11px;color:rgba(255,255,255,.3);margin-bottom:14px}
+.mapa-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.mi{border-radius:10px;padding:11px 10px}
+.mi.g{background:rgba(95,175,138,.15);border:1px solid rgba(95,175,138,.25)}
+.mi.a{background:rgba(212,138,58,.14);border:1px solid rgba(212,138,58,.25)}
+.mi.r{background:rgba(201,64,64,.15);border:1px solid rgba(201,64,64,.3)}
+.mi-pl{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px}
+.mi.g .mi-pl{color:rgba(95,175,138,.8)}.mi.a .mi-pl{color:rgba(212,138,58,.8)}.mi.r .mi-pl{color:rgba(201,64,64,.8)}
+.mi-em{font-size:18px;margin-bottom:2px}
+.mi-st{font-size:12px;font-weight:600;color:#fff}
+.mi-nt{font-size:11px;color:rgba(255,255,255,.4);margin-top:3px;line-height:1.4}
+.mapa-footer{background:rgba(255,255,255,.05);border-radius:10px;padding:11px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.mf-lbl{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:5px}
+.mf-lbl.g{color:var(--sage)}.mf-lbl.a{color:var(--amber)}.mf-lbl.r{color:var(--red)}
+.mf-txt{font-size:11px;color:rgba(255,255,255,.55);line-height:1.65}
+
+/* ══ PLAN PHASES ══ */
+.fase{border-radius:var(--r-s);padding:12px 13px;margin-bottom:10px}
+.fase.e{background:var(--red-l);border-left:3px solid var(--red)}
+.fase.re{background:var(--amber-l);border-left:3px solid var(--amber)}
+.fase.ac{background:var(--sage-l);border-left:3px solid var(--sage)}
+.fase-ttl{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:7px}
+.fase.e .fase-ttl{color:var(--red)}.fase.re .fase-ttl{color:var(--amber)}.fase.ac .fase-ttl{color:#2D7A5A}
+.fase textarea{width:100%;border:none;background:rgba(255,255,255,.7);border-radius:7px;padding:10px 12px;font-size:14px;font-family:inherit;color:var(--ink);resize:none;min-height:65px;outline:none;line-height:1.65}
+
+/* ══ CAMADAS ══ */
+.camada{background:var(--ink);border-radius:var(--r-s);padding:12px 14px;margin-bottom:12px}
+.cam-lbl{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px}
+.c1{color:var(--gold-l)}.c2{color:var(--teal)}.c3{color:var(--sage)}
+.cam-note{font-size:12px;color:rgba(255,255,255,.35);font-style:italic;margin-bottom:7px}
+.cam-inp{width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:7px;padding:10px 12px;font-size:14px;font-family:inherit;color:rgba(255,255,255,.85);resize:none;min-height:75px;outline:none;line-height:1.7}
+
+/* ══ TIMELINE ══ */
+.tl{padding-left:20px;position:relative}
+.tl::before{content:'';position:absolute;left:0;top:20px;bottom:20px;width:1.5px;background:var(--border)}
+.tli{display:flex;gap:12px;padding-bottom:14px;position:relative}
+.tli::before{content:'';position:absolute;left:-26px;top:10px;width:12px;height:12px;border-radius:50%;background:#fff;border:2.5px solid var(--teal);z-index:1}
+.tli.t::before{background:var(--gold);border-color:var(--gold)}
+.tli-body{flex:1}
+.tli-when{font-size:11px;font-weight:600;color:var(--gold-d);margin-bottom:2px}
+.tli-text{font-size:14px;font-weight:600;color:var(--ink)}
+.tli-sub{font-size:12px;color:var(--ink-l);margin-top:2px;line-height:1.5}
+
+/* ══ WA ══ */
+.wa{background:#E8F5E0;border-radius:12px 12px 12px 3px;padding:13px;font-size:13px;color:#1A3020;line-height:1.85;white-space:pre-wrap}
+
+/* ══ TIMER ══ */
+.timer-bar{background:var(--ink);border-radius:var(--r);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.tv{font-family:monospace;font-size:22px;color:rgba(255,255,255,.85);letter-spacing:2px}
+.tlbl{font-size:10px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
+
+/* ══ DIVIDER ══ */
+.div{height:1px;background:var(--border);margin:14px 0}
+.st-label{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-l);margin:16px 0 10px;display:flex;align-items:center;gap:10px}
+.st-label::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ══ BTN ══ */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:12px 20px;border-radius:var(--r-s);border:none;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:.2s}
+.btn:active{transform:scale(.97)}
+.btn-ink{background:var(--ink);color:#fff}
+.btn-gold{background:var(--gold);color:var(--ink)}
+.btn-ghost{background:var(--gold-bg);border:1.5px solid var(--border);color:var(--ink-l)}
+.btn-teal{background:var(--teal-l);border:1.5px solid rgba(74,191,191,.3);color:#2A8080}
+.btn-sage{background:var(--sage-l);border:1.5px solid rgba(95,175,138,.3);color:#2D7A5A}
+.btn-red{background:var(--red-l);border:1px solid rgba(201,64,64,.2);color:var(--red)}
+.btn-full{width:100%;justify-content:center}
+.btn-sm{padding:9px 16px;font-size:13px}
+
+/* ══ MODAL ══ */
+.modal-overlay{position:fixed;inset:0;background:rgba(13,27,42,.6);backdrop-filter:blur(8px);z-index:200;display:none;align-items:flex-end}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:22px 22px 0 0;width:100%;max-height:75vh;overflow-y:auto;padding:18px 18px calc(env(safe-area-inset-bottom,18px) + 18px)}
+.modal-handle{width:38px;height:4px;background:var(--border);border-radius:100px;margin:0 auto 18px}
+.modal-title{font-size:20px;font-weight:700;color:var(--ink);margin-bottom:3px}
+.modal-sub{font-size:13px;color:var(--ink-l);margin-bottom:18px}
+.modal-actions{display:flex;flex-direction:column;gap:10px}
+
+/* ══ PRINT ══ */
+@media print{.topbar,.step-tabs,.progress-bar,.bottom-nav,.fab,.rec,.btn-ai{display:none!important}.app{height:auto}.screen{overflow:visible}.mapa{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+@media(max-width:480px){.fg2{grid-template-columns:1fr}.mapa-footer{grid-template-columns:1fr}.bg{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN SCREEN ══ -->
+<div class="login-screen" id="login-screen">
+  <div class="login-logo">🌬️</div>
+  <div class="login-title">Consulta 360<br><em>Respira · Dorme · Cresce</em></div>
+  <div class="login-sub">Plataforma clínica da<br>Dra. Cristiane Martins</div>
+
+  <div class="login-form">
+    <div class="login-error" id="login-error"></div>
+    <div class="login-loading" id="login-loading">
+      <span class="spin">⟳</span> A entrar...
+    </div>
+    <input class="login-input" id="login-email" type="email" placeholder="O teu email" autocomplete="email">
+    <input class="login-input" id="login-password" type="password" placeholder="Password" autocomplete="current-password">
+    <button class="login-btn" id="login-btn" onclick="doLogin()">Entrar →</button>
+    <button class="login-btn secondary" id="signup-btn" onclick="doSignup()" style="display:none">Criar conta →</button>
+    <div class="login-mode-toggle" id="login-toggle">
+      Ainda não tens conta? <span onclick="toggleLoginMode()">Criar agora</span>
+    </div>
+  </div>
+
+  <!-- Config notice (só aparece se não configurado) -->
+  <div id="config-notice" style="display:none;margin-top:24px;padding:14px 16px;background:rgba(201,64,64,.15);border:1px solid rgba(201,64,64,.3);border-radius:12px;text-align:center;max-width:400px">
+    <div style="font-size:13px;color:rgba(255,100,100,.9);line-height:1.7">
+      ⚠️ <strong>Supabase não configurado</strong><br>
+      O Leo precisa de adicionar o URL e a chave do projecto.<br>
+      <span style="color:rgba(255,255,255,.35);font-size:11px;margin-top:6px;display:block">Ver comentários no topo do ficheiro JS</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ APP SHELL ══ -->
+<div class="app" id="app-shell" style="display:none">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="tb-logo">🌬️</div>
+    <div class="tb-title">Consulta 360<span id="tb-sub">Dra. Cristiane Martins</span></div>
+    <button class="tb-save" id="save-ind" style="display:none" onclick="manualSave()">
+      <span id="save-icon">💾</span><span id="save-txt">Guardar</span>
+    </button>
+    <div class="tb-user" id="tb-user-box" onclick="showModal('modal-user')">
+      <strong id="tb-user-name">—</strong>
+      <span>Sair</span>
+    </div>
+    <button class="tb-home" id="btn-home" onclick="confirmHome()" style="display:none">🏠</button>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="progress-bar" id="pbar" style="display:none">
+    <div class="progress-fill" id="pfill" style="width:0%"></div>
+  </div>
+
+  <!-- TABS -->
+  <div class="step-tabs" id="stabs" style="display:none"></div>
+
+  <!-- CONTENT -->
+  <div class="screen" id="main-screen">
+
+    <!-- ══ PAGE 0: LIST ══ -->
+    <div class="page active" id="page-list">
+      <div class="hero">
+        <div class="hero-eye">Protocolo Clínico · RC360</div>
+        <div class="hero-title">Consulta 360<br><em>Respira · Dorme · Cresce</em></div>
+        <div class="hero-sub">Arquivo de pacientes · Supabase · Acesso em qualquer dispositivo</div>
+        <div class="hero-tags">
+          <span class="hero-tag">☁️ Nuvem</span>
+          <span class="hero-tag">🎙️ Gravação + IA</span>
+          <span class="hero-tag">🔒 Login seguro</span>
+          <span class="hero-tag">🖨️ Mapa 360</span>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat"><div class="stat-num" id="stat-tot">0</div><div class="stat-lbl">Consultas</div></div>
+        <div class="stat"><div class="stat-num" id="stat-red" style="color:var(--red)">0</div><div class="stat-lbl">Actuar</div></div>
+        <div class="stat"><div class="stat-num" id="stat-grn" style="color:var(--sage)">0</div><div class="stat-lbl">OK</div></div>
+      </div>
+
+      <div class="sync-badge online" id="sync-badge">
+        <span>☁️</span><span id="sync-txt">Sincronizado com Supabase</span>
+      </div>
+
+      <div class="plist-hdr">
+        <div class="plist-ttl">Pacientes</div>
+        <input class="plist-search" id="search-inp" placeholder="🔍 Pesquisar..." oninput="filterPatients(this.value)">
+      </div>
+
+      <div id="patient-list"></div>
+      <div style="height:80px"></div>
+    </div>
+
+    <!-- ══ PAGE 1: SETUP ══ -->
+    <div class="page" id="page-setup">
+      <div class="card">
+        <div class="ch"><div class="ch-n">1</div><div class="ch-t">Dados da criança</div></div>
+        <div class="cb">
+          <div class="field"><label class="lbl">Nome completo</label><input class="inp" id="s-name" placeholder="Ex: Maria Conceição Santos" type="text" autocomplete="off"></div>
+          <div class="fg2">
+            <div class="field"><label class="lbl">Idade</label><input class="inp" id="s-age" placeholder="Ex: 7 anos" type="text"></div>
+            <div class="field"><label class="lbl">Tipo</label><select class="inp sel" id="s-tipo"><option value="base">360 Base (60 min)</option><option value="plus">360 Plus (75 min)</option></select></div>
+          </div>
+          <div class="field"><label class="lbl">Responsável (pai/mãe)</label><input class="inp" id="s-parent" placeholder="Nome do responsável"></div>
+          <div class="field"><label class="lbl">WhatsApp</label><input class="inp" id="s-phone" placeholder="+351 9XX XXX XXX" type="tel"></div>
+          <div class="field"><label class="lbl">Queixa principal</label><textarea class="inp ta" id="s-queixa" rows="3" placeholder="O que os pais indicaram no questionário..."></textarea></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ch"><div class="ch-n">2</div><div class="ch-t">Modo de uso</div></div>
+        <div class="cb">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div onclick="setMode('rec')" id="mode-rec" style="border:2px solid var(--gold);background:var(--gold-bg);border-radius:var(--r-s);padding:14px;cursor:pointer">
+              <div style="font-size:24px;margin-bottom:8px">🎙️</div>
+              <div style="font-size:14px;font-weight:700;color:var(--ink)">Gravar + IA</div>
+              <div style="font-size:12px;color:var(--ink-l);margin-top:3px;line-height:1.5">IA preenche automaticamente</div>
+            </div>
+            <div onclick="setMode('manual')" id="mode-manual" style="border:1.5px solid var(--border);background:#fff;border-radius:var(--r-s);padding:14px;cursor:pointer">
+              <div style="font-size:24px;margin-bottom:8px">✍️</div>
+              <div style="font-size:14px;font-weight:700;color:var(--ink)">Manual</div>
+              <div style="font-size:12px;color:var(--ink-l);margin-top:3px;line-height:1.5">Preenches passo a passo</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-gold btn-full" style="font-size:16px;padding:17px" onclick="startConsulta()">Iniciar Consulta →</button>
+    </div>
+
+    <!-- ══ PAGE 2: ABERTURA ══ -->
+    <div class="page" id="page-abertura">
+      <div class="rec" id="rec-panel">
+        <div class="rec-top">
+          <div class="rec-status"><div class="rdot" id="rdot"></div><div class="rlabel" id="rlabel">Pronta para gravar</div></div>
+          <div class="rtimer" id="rtimer">00:00</div>
+        </div>
+        <div class="rec-center"><button class="rbtn idle" id="rbtn" onclick="toggleRec()">🎙️</button></div>
+        <div class="rtranscript" id="rtrans"><span style="color:rgba(255,255,255,.25);font-style:italic">Transcrição em tempo real...</span></div>
+        <div class="rec-actions" id="rec-acts">
+          <button class="btn-ai" id="btn-ai" onclick="analyzeAI()">🤖 Analisar com IA → Preencher tudo</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleRec()" style="border-color:rgba(255,255,255,.15);color:rgba(255,255,255,.4)">🔄</button>
+        </div>
+        <div class="ai-status" id="ai-st"></div>
+      </div>
+
+      <div class="alert a-gold"><span>✨</span><div><strong>Frase de entrada</strong> — <em>"Hoje vou fazer 3 coisas: perceber como ela respira, como dorme e como a face está a crescer."</em></div></div>
+
+      <div class="card">
+        <div class="ch"><div class="ch-n">⚡</div><div class="ch-t">BEARS — Triagem do sono</div><span class="ch-b b-a">Obrigatório</span></div>
+        <div class="cb">
+          <div class="alert a-ink"><span>💬</span><div style="font-size:13px;font-style:italic;color:var(--ink-l)">"Eu faço estas perguntas porque sono e respiração podem mexer com aprendizagem, comportamento e crescimento."</div></div>
+          <div class="bg">
+            <div class="bc" id="bc-B" onclick="toggleB('bc-B')"><div class="bc-l">B</div><div class="bc-n">Bedtime</div><div class="bc-d">Resistência ao deitar? Demora a adormecer?</div></div>
+            <div class="bc" id="bc-E" onclick="toggleB('bc-E')"><div class="bc-l">E</div><div class="bc-n">Excessive</div><div class="bc-d">Sonolência diurna? Irritabilidade?</div></div>
+            <div class="bc" id="bc-A" onclick="toggleB('bc-A')"><div class="bc-l">A</div><div class="bc-n">Awakenings</div><div class="bc-d">Acorda várias vezes? Enurese?</div></div>
+            <div class="bc" id="bc-R" onclick="toggleB('bc-R')"><div class="bc-l">R</div><div class="bc-n">Regularity</div><div class="bc-d">Horas de sono? Rotina?</div></div>
+            <div class="bc" id="bc-S" onclick="toggleB('bc-S')"><div class="bc-l">S</div><div class="bc-n">Snoring</div><div class="bc-d">Ressona? Boca aberta? Pausas?</div></div>
+            <div class="bc" style="background:var(--gold-bg);border:1.5px dashed var(--border)"><div style="font-size:18px;margin-bottom:5px">🔑</div><div class="bc-n">Frase gancho</div><div class="bc-d" style="font-style:italic">"A boca dá pistas do sono."</div></div>
+          </div>
+          <div class="div"></div>
+          <div class="cl">
+            <div class="ci" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text"><strong>Ressona</strong> ou dorme de boca aberta?</span><span class="ci-flag">⚠️</span></div>
+            <div class="ci" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text"><strong>Acorda cansada</strong> ou dificuldade em acordar?</span><span class="ci-flag">⚠️</span></div>
+            <div class="ci" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text"><strong>Dia agitado</strong> — irritabilidade, concentração?</span><span class="ci-flag">⚠️</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="field"><label class="lbl">Notas da abertura</label><textarea class="inp ta" id="nota-ab" rows="3" placeholder="Como reagiu a família · O que observaste ao entrar..."></textarea></div>
+    </div>
+
+    <!-- ══ PAGE 3: ANAMNESE ══ -->
+    <div class="page" id="page-anam">
+      <div class="card"><div class="ch"><div class="ch-n">1</div><div class="ch-t">Queixa Principal</div></div>
+        <div class="cb">
+          <div class="field"><label class="lbl">Com as palavras da família</label><textarea class="inp ta" id="a1-q" rows="3" placeholder="Deixa dizer sem interromper."></textarea></div>
+          <div class="field"><label class="lbl">Há quanto tempo</label><input class="inp" id="a1-t" placeholder="Ex: sempre foi assim, desde os 3 anos..."></div>
+          <div class="field"><label class="lbl">Já tentaram resolver?</label><textarea class="inp ta" id="a1-tent" rows="2" placeholder="O quê? Com que resultado?"></textarea></div>
+        </div>
+      </div>
+      <div class="card"><div class="ch"><div class="ch-n">2</div><div class="ch-t">Histórico Pré-natal e Perinatal</div></div>
+        <div class="cb">
+          <div class="field"><label class="lbl">Tipo de parto</label><div class="rr" data-g="parto"><div class="rp" onclick="rp(this)">Vaginal</div><div class="rp" onclick="rp(this)">Cesariana</div><div class="rp" onclick="rp(this)">Ventosa</div><div class="rp" onclick="rp(this)">Fórceps</div><div class="rp" onclick="rp(this)">Prematuro</div></div></div>
+          <div class="field"><label class="lbl">Amamentação</label><div class="rr" data-g="amam"><div class="rp" onclick="rp(this)">Peito &gt;6m</div><div class="rp" onclick="rp(this)">Peito &lt;6m</div><div class="rp" onclick="rp(this)">Biberão início</div><div class="rp" onclick="rp(this)">Misto</div></div></div>
+        </div>
+      </div>
+      <div class="card" style="border-color:rgba(196,164,74,.3)"><div class="ch" style="background:var(--gold-bg)"><div class="ch-n" style="background:var(--gold-d)">3</div><div class="ch-t">Respiração e Sono ⭐</div><span class="ch-b b-k">Pilar-chave</span></div>
+        <div class="cb">
+          <div class="field"><label class="lbl">Padrão respiratório</label><div class="rr" data-g="resp"><div class="rp" onclick="rp(this)">Nasal ✓</div><div class="rp" onclick="rp(this)">Oral ⚠️</div><div class="rp" onclick="rp(this)">Misto</div></div></div>
+          <div class="field"><label class="lbl">Sinais durante o sono</label>
+            <div class="cl">
+              <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Dorme de boca aberta</span><span class="ci-flag">⚠️</span></div>
+              <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Ronco frequente e audível</span><span class="ci-flag">🔴</span></div>
+              <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Pausas respiratórias observadas</span><span class="ci-flag">🔴</span></div>
+              <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Sono muito agitado</span><span class="ci-flag">⚠️</span></div>
+              <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Acorda cansada / não descansada</span><span class="ci-flag">⚠️</span></div>
+              <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Bruxismo nocturno</span><span class="ci-flag">⚠️</span></div>
+              <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Enurese nocturna</span><span class="ci-flag">⚠️</span></div>
+            </div>
+          </div>
+          <div class="field"><label class="lbl">Impacto diurno</label>
+            <div class="cl">
+              <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Irritabilidade crónica</span></div>
+              <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Dificuldade de concentração / escola</span></div>
+              <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Cansaço crónico</span></div>
+              <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Hiperactividade</span></div>
+            </div>
+          </div>
+          <div class="field"><label class="lbl">Histórico ORL</label>
+            <div class="cl">
+              <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Rinite alérgica / nariz entupido crónico</span></div>
+              <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Amígdalas aumentadas</span></div>
+              <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Adenoides aumentadas</span></div>
+              <div class="ci" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Adenoamigdalectomia já realizada</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card"><div class="ch"><div class="ch-n">4-5</div><div class="ch-t">Hábitos Alimentares e Orais</div></div>
+        <div class="cb">
+          <div class="cl">
+            <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Alimentação selectiva / recusa texturas</span><span class="ci-flag">⚠️</span></div>
+            <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Mastiga com boca aberta ou de um lado</span><span class="ci-flag">⚠️</span></div>
+            <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Chupeta até idade avançada</span><span class="ci-flag">⚠️</span></div>
+            <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Sucção digital</span><span class="ci-flag">⚠️</span></div>
+            <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Lábios abertos em repouso</span><span class="ci-flag">⚠️</span></div>
+            <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Bruxismo diurno</span><span class="ci-flag">⚠️</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card"><div class="ch"><div class="ch-n">6-9</div><div class="ch-t">Saúde · Postura · Comportamento</div></div>
+        <div class="cb">
+          <div class="cl">
+            <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Alergias (alimentar / ambiental)</span><span class="ci-flag">🔴</span></div>
+            <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Asma ou bronquite</span><span class="ci-flag">🔴</span></div>
+            <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Infecções respiratórias recorrentes</span><span class="ci-flag">🔴</span></div>
+            <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Medicação em curso</span><span class="ci-flag">⚠️</span></div>
+            <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">PHDA / TEA / hipotonia diagnosticados</span><span class="ci-flag">⚠️</span></div>
+            <div class="ci fr" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">Cabeça projectada para a frente</span><span class="ci-flag">⚠️</span></div>
+          </div>
+          <div class="field" style="margin-top:12px"><label class="lbl">Medicação / observações</label><textarea class="inp ta" id="a7-med" rows="2" placeholder="Ex: Montelucaste, anti-histamínico..."></textarea></div>
+          <div class="field"><label class="lbl">Cooperação da criança</label><div class="rr" data-g="coop"><div class="rp" onclick="rp(this)">Cooperante</div><div class="rp" onclick="rp(this)">Ansiosa</div><div class="rp" onclick="rp(this)">Resistente</div><div class="rp" onclick="rp(this)">Varia</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ PAGE 4: EXAME ══ -->
+    <div class="page" id="page-exame">
+      <div class="timer-bar">
+        <div><div class="tlbl">Tempo de exame</div><div class="tv" id="etimer">00:00</div></div>
+        <div style="display:flex;gap:8px">
+          <button onclick="toggleET()" id="ebtn" style="padding:8px 14px;border-radius:8px;border:none;background:var(--gold);color:var(--ink);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">▶ Start</button>
+          <button onclick="resetET()" style="padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.5);font-size:12px;cursor:pointer">↺</button>
+        </div>
+      </div>
+      <div class="st-label">Exame Extra-oral</div>
+      <div class="card"><div class="ch"><div class="ch-n">E1</div><div class="ch-t">Face, Perfil e Postura</div></div>
+        <div class="cb">
+          <div class="field"><label class="lbl">Tipo facial</label><div class="rr" data-g="tfacial"><div class="rp" onclick="rp(this)">Normoface ✓</div><div class="rp" onclick="rp(this)">Dolicoface ⚠️</div><div class="rp" onclick="rp(this)">Brachyface</div></div></div>
+          <div class="field"><label class="lbl">Lábios em repouso</label><div class="rr" data-g="labios"><div class="rp" onclick="rp(this)">Fechados ✓</div><div class="rp" onclick="rp(this)">Abertos ⚠️</div><div class="rp" onclick="rp(this)">Mentalis activo ⚠️</div></div></div>
+          <div class="field"><label class="lbl">Cabeça</label><div class="rr" data-g="cabeca"><div class="rp" onclick="rp(this)">Alinhada ✓</div><div class="rp" onclick="rp(this)">Projectada à frente ⚠️</div><div class="rp" onclick="rp(this)">Inclinada</div></div></div>
+          <div class="field"><label class="lbl">Olheiras</label><div class="rr" data-g="olheiras"><div class="rp" onclick="rp(this)">Ausentes ✓</div><div class="rp" onclick="rp(this)">Ligeiras</div><div class="rp" onclick="rp(this)">Marcadas ⚠️</div></div></div>
+        </div>
+      </div>
+      <div class="card"><div class="ch"><div class="ch-n">E2</div><div class="ch-t">Respiração Funcional</div></div>
+        <div class="cb">
+          <div class="field"><label class="lbl">Padrão observado</label><div class="rr" data-g="resp-obs"><div class="rp" onclick="rp(this)">Nasal ✓</div><div class="rp" onclick="rp(this)">Oral ⚠️</div><div class="rp" onclick="rp(this)">Misto</div></div></div>
+          <div class="field"><label class="lbl">Teste do espelho</label><div class="rr" data-g="espelho"><div class="rp" onclick="rp(this)">Embaça ambos ✓</div><div class="rp" onclick="rp(this)">Só um lado ⚠️</div><div class="rp" onclick="rp(this)">Não embaça 🔴</div></div></div>
+          <div class="field"><label class="lbl">Nariz fechado 30s</label><div class="rr" data-g="nariz30"><div class="rp" onclick="rp(this)">Sem esforço ✓</div><div class="rp" onclick="rp(this)">Com esforço ⚠️</div><div class="rp" onclick="rp(this)">Não consegue 🔴</div></div></div>
+        </div>
+      </div>
+      <div class="st-label">Exame Intra-oral</div>
+      <div class="card"><div class="ch"><div class="ch-n">E3</div><div class="ch-t">Cavidade Oral</div></div>
+        <div class="cb">
+          <div class="field"><label class="lbl">Palato</label><div class="rr" data-g="palato"><div class="rp" onclick="rp(this)">Normal ✓</div><div class="rp" onclick="rp(this)">Estreito ⚠️</div><div class="rp" onclick="rp(this)">Ogival 🔴</div></div></div>
+          <div class="field"><label class="lbl">Língua em repouso</label><div class="rr" data-g="lingua"><div class="rp" onclick="rp(this)">No palato ✓</div><div class="rp" onclick="rp(this)">Baixa ⚠️</div><div class="rp" onclick="rp(this)">Entre dentes 🔴</div></div></div>
+          <div class="field"><label class="lbl">Freio lingual</label><div class="rr" data-g="freio"><div class="rp" onclick="rp(this)">Normal</div><div class="rp" onclick="rp(this)">Curto / anquiloglossia ⚠️</div><div class="rp" onclick="rp(this)">Limite</div></div></div>
+          <div class="field"><label class="lbl">Oclusão</label><div class="rr" data-g="oclusao"><div class="rp" onclick="rp(this)">Classe I ✓</div><div class="rp" onclick="rp(this)">Classe II</div><div class="rp" onclick="rp(this)">Classe III</div><div class="rp" onclick="rp(this)">Mordida cruzada 🔴</div><div class="rp" onclick="rp(this)">Mordida aberta 🔴</div></div></div>
+          <div class="field"><label class="lbl">Deglutição</label><div class="rr" data-g="deglu"><div class="rp" onclick="rp(this)">Normal ✓</div><div class="rp" onclick="rp(this)">Atípica (língua entre dentes) 🔴</div><div class="rp" onclick="rp(this)">Infantil</div></div></div>
+          <div class="field"><label class="lbl">Mastigação</label><div class="rr" data-g="mastig"><div class="rp" onclick="rp(this)">Bilateral alternada ✓</div><div class="rp" onclick="rp(this)">Unilateral ⚠️</div><div class="rp" onclick="rp(this)">Boca aberta ⚠️</div></div></div>
+        </div>
+      </div>
+      <div class="card"><div class="cb">
+        <div class="cl">
+          <div class="ci" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">📸 Face frontal + perfil</span></div>
+          <div class="ci" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">📸 Postura corporal</span></div>
+          <div class="ci" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">📸 Intra-oral + arcadas</span></div>
+          <div class="ci" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">🦷 Scan 3D intraoral</span></div>
+          <div class="ci" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">📺 OPG — só se indicado</span></div>
+          <div class="ci" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">💤 Biologics — triagem sono</span></div>
+        </div>
+      </div></div>
+      <div class="field"><label class="lbl">Observações clínicas</label><textarea class="inp ta" id="exame-nt" rows="4" placeholder="Achados relevantes · conexões entre pilares..."></textarea></div>
+    </div>
+
+    <!-- ══ PAGE 5: FECHO ══ -->
+    <div class="page" id="page-fecho">
+      <div class="alert a-gold"><span>🗺️</span><div><strong>Regra de fecho</strong> — "Aqui ninguém decide por medo. Decide com mapa." · Técnica sanduíche · Máximo 3 informações novas.</div></div>
+
+      <div class="card"><div class="ch"><div class="ch-n">S</div><div class="ch-t">Semáforos por pilar</div></div>
+        <div class="cb">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div class="field"><label class="lbl">🦷 Cavidade Oral</label><div class="rr" data-g="sem1"><div class="rp" onclick="setSem(1,'g',this)">🟢</div><div class="rp on" onclick="setSem(1,'a',this)">🟡</div><div class="rp" onclick="setSem(1,'r',this)">🔴</div></div><input class="inp" style="margin-top:8px;font-size:13px" id="np1" placeholder="Nota..." onchange="updateMapaNote(1,this.value)"></div>
+            <div class="field"><label class="lbl">🌬️ Respiração</label><div class="rr" data-g="sem2"><div class="rp" onclick="setSem(2,'g',this)">🟢</div><div class="rp" onclick="setSem(2,'a',this)">🟡</div><div class="rp on" onclick="setSem(2,'r',this)">🔴</div></div><input class="inp" style="margin-top:8px;font-size:13px" id="np2" placeholder="Nota..." onchange="updateMapaNote(2,this.value)"></div>
+            <div class="field"><label class="lbl">📈 Crescimento</label><div class="rr" data-g="sem3"><div class="rp" onclick="setSem(3,'g',this)">🟢</div><div class="rp on" onclick="setSem(3,'a',this)">🟡</div><div class="rp" onclick="setSem(3,'r',this)">🔴</div></div><input class="inp" style="margin-top:8px;font-size:13px" id="np3" placeholder="Nota..." onchange="updateMapaNote(3,this.value)"></div>
+            <div class="field"><label class="lbl">⚙️ Função Oral</label><div class="rr" data-g="sem4"><div class="rp on" onclick="setSem(4,'g',this)">🟢</div><div class="rp" onclick="setSem(4,'a',this)">🟡</div><div class="rp" onclick="setSem(4,'r',this)">🔴</div></div><input class="inp" style="margin-top:8px;font-size:13px" id="np4" placeholder="Nota..." onchange="updateMapaNote(4,this.value)"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mapa" id="mapa360">
+        <div class="mapa-ey">Mapa Respira e Cresce 360</div>
+        <div class="mapa-patient" id="mapa-pname">—</div>
+        <div class="mapa-date" id="mapa-date">—</div>
+        <div class="mapa-grid">
+          <div id="mp1" class="mi a"><div class="mi-pl">🦷 Cavidade Oral</div><div class="mi-em" id="mp1-em">🟡</div><div class="mi-st" id="mp1-st">Observar</div><div class="mi-nt" id="mp1-nt">A definir</div></div>
+          <div id="mp2" class="mi r"><div class="mi-pl">🌬️ Respiração</div><div class="mi-em" id="mp2-em">🔴</div><div class="mi-st" id="mp2-st">Actuar</div><div class="mi-nt" id="mp2-nt">A definir</div></div>
+          <div id="mp3" class="mi a"><div class="mi-pl">📈 Crescimento</div><div class="mi-em" id="mp3-em">🟡</div><div class="mi-st" id="mp3-st">Observar</div><div class="mi-nt" id="mp3-nt">A definir</div></div>
+          <div id="mp4" class="mi g"><div class="mi-pl">⚙️ Função Oral</div><div class="mi-em" id="mp4-em">🟢</div><div class="mi-st" id="mp4-st">Sem alertas</div><div class="mi-nt" id="mp4-nt">A definir</div></div>
+        </div>
+        <div class="mapa-footer">
+          <div><div class="mf-lbl g">✓ Está bem</div><div class="mf-txt" id="mf-bem" contenteditable>— Preencher —</div></div>
+          <div><div class="mf-lbl r">⚠ Preocupa</div><div class="mf-txt" id="mf-preo" contenteditable>— Preencher —</div></div>
+          <div><div class="mf-lbl a">? Falta confirmar</div><div class="mf-txt" id="mf-falt" contenteditable>— Preencher —</div></div>
+        </div>
+      </div>
+
+      <div class="st-label">As 3 camadas · nunca usar "diagnóstico"</div>
+      <div class="camada"><div class="cam-lbl c1">Camada 1 — O que observei</div><div class="cam-note">Linguagem visual e concreta. Sem julgamento.</div><textarea class="cam-inp" id="cam1" rows="4" placeholder="Ex: Observei que a Maria respira predominantemente pela boca..."></textarea></div>
+      <div class="camada"><div class="cam-lbl c2">Camada 2 — O que isso significa</div><div class="cam-note">Liga os sinais. Linguagem simples.</div><textarea class="cam-inp" id="cam2" rows="4" placeholder="Ex: Quando uma criança respira pela boca de forma persistente..."></textarea></div>
+      <div class="camada" style="margin-bottom:14px">
+        <div class="cam-lbl c3">Camada 3 — O que fazer a seguir</div><div class="cam-note" style="margin-bottom:10px">Plano por fases.</div>
+        <div class="fase e"><div class="fase-ttl">🔴 Essencial Agora</div><textarea id="plano-e" placeholder="Próximos 30 dias..."></textarea></div>
+        <div class="fase re"><div class="fase-ttl">🟡 Recomendado (3-6 meses)</div><textarea id="plano-r" placeholder="Médio prazo..."></textarea></div>
+        <div class="fase ac"><div class="fase-ttl">🟢 Acompanhar</div><textarea id="plano-a" placeholder="Checkpoints..."></textarea></div>
+      </div>
+
+      <div class="card"><div class="ch"><div class="ch-n">↗</div><div class="ch-t">Referenciações</div></div>
+        <div class="cb">
+          <div class="cl">
+            <div class="ci" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">🫁 ORL / Pneumologia Pediátrica</span></div>
+            <div class="ci" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">💤 Medicina do Sono — Biologics</span></div>
+            <div class="ci" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">🏃 Fisioterapia — Leonardo</span></div>
+            <div class="ci" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">💬 Terapia da fala / Fonoaudiologia</span></div>
+            <div class="ci" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">🌿 Medicina Integrativa — Dra. Vânia</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px">
+        <button class="btn btn-ghost" onclick="window.print()">🖨️ Imprimir Mapa</button>
+        <button class="btn btn-ink" onclick="goPage('page-followup')">Follow-up →</button>
+      </div>
+    </div>
+
+    <!-- ══ PAGE 6: FOLLOW-UP ══ -->
+    <div class="page" id="page-followup">
+      <div class="card"><div class="cb">
+        <div class="cl">
+          <div class="ci" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">🗺️ Mapa 360 impresso — entregue em mão</span></div>
+          <div class="ci" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">📋 Checklist 7 dias / diário do sono</span></div>
+          <div class="ci" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">🎥 Vídeos enviados por WhatsApp</span></div>
+          <div class="ci" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">📅 Consulta de Resultados marcada</span></div>
+          <div class="ci" onclick="ci(this)"><div class="ci-box">✓</div><span class="ci-text">💤 Biologics entregue + instrução</span></div>
+        </div>
+      </div></div>
+
+      <div class="card"><div class="cb">
+        <div class="tl">
+          <div class="tli t"><div class="tli-body"><div class="tli-when">Hoje · Ao sair</div><div class="tli-text">Mensagem WhatsApp + Mapa 360</div><div class="tli-sub">Enviar mapa e vídeos imediatamente</div></div></div>
+          <div class="tli"><div class="tli-body"><div class="tli-when">24 horas</div><div class="tli-text">Como correu a primeira noite?</div></div></div>
+          <div class="tli"><div class="tli-body"><div class="tli-when">72 horas</div><div class="tli-text">Verificar diário do sono</div></div></div>
+          <div class="tli"><div class="tli-body"><div class="tli-when">7 dias</div><div class="tli-text">Confirmar Consulta de Resultados</div></div></div>
+        </div>
+      </div></div>
+
+      <div class="st-label">WhatsApp — gerado pela IA</div>
+      <div class="card"><div class="cb">
+        <div class="wa" id="wa-prev">Olá [Nome] 🌿\n\nFoi um prazer conhecer a [criança] hoje.\n\nDra. Cristiane</div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <button class="btn btn-teal btn-sm" onclick="generateWA()">🤖 Gerar com IA</button>
+          <button class="btn btn-ghost btn-sm" onclick="copyWA()">📋 Copiar</button>
+        </div>
+      </div></div>
+
+      <div class="field"><label class="lbl">Tarefa de casa</label><textarea class="inp ta" id="tarefa" rows="3" placeholder="Ex: Observar 7 noites se a Maria dorme de boca aberta..."></textarea></div>
+      <div class="field"><label class="lbl">Consulta de Resultados — data</label><input class="inp" id="proxima" placeholder="Ex: 15 Maio, 10h30"></div>
+      <div class="field"><label class="lbl">Notas para a equipa</label><textarea class="inp ta" id="notas-eq" rows="2" placeholder="Instruções para assistente / secretária..."></textarea></div>
+
+      <div style="background:var(--sage-l);border-radius:var(--r);padding:20px;text-align:center;margin-top:14px;border:1px solid rgba(95,175,138,.2)">
+        <div style="font-size:28px;margin-bottom:10px">✅</div>
+        <div style="font-size:20px;font-weight:700;color:var(--ink);margin-bottom:6px">Consulta documentada</div>
+        <div style="font-size:14px;color:var(--ink-l);line-height:1.7;margin-bottom:14px">Guardada no Supabase · acessível em qualquer dispositivo</div>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+          <button class="btn btn-gold" onclick="window.print()">🖨️ Imprimir Mapa</button>
+          <button class="btn btn-ink" onclick="finishConsulta()">✓ Guardar e Concluir</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- .screen -->
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav" id="bot-nav">
+    <button class="btn-back-nav" id="btn-bk" onclick="prevPage()">← Anterior</button>
+    <button class="btn-next-nav" id="btn-nx" onclick="nextPage()">Próximo →</button>
+  </div>
+
+</div><!-- .app-shell -->
+
+<!-- FAB -->
+<button class="fab" id="fab" onclick="newConsulta()">＋</button>
+
+<!-- MODAL: USER -->
+<div class="modal-overlay" id="modal-user" onclick="if(event.target===this)closeModal('modal-user')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-user-name">—</div>
+    <div class="modal-sub" id="modal-user-email">—</div>
+    <div class="modal-actions">
+      <button class="btn btn-red btn-full btn-sm" onclick="doLogout()">🚪 Sair da conta</button>
+      <button class="btn btn-ghost btn-full btn-sm" onclick="closeModal('modal-user')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: PATIENT OPTIONS -->
+<div class="modal-overlay" id="modal-pat" onclick="if(event.target===this)closeModal('modal-pat')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="mpat-name">—</div>
+    <div class="modal-sub" id="mpat-meta">—</div>
+    <div class="modal-actions">
+      <button class="btn btn-ink btn-full" onclick="openPatient()">📋 Abrir consulta</button>
+      <button class="btn btn-ghost btn-full" onclick="window.print()">🖨️ Imprimir Mapa 360</button>
+      <button class="btn btn-red btn-full btn-sm" onclick="deletePatient()">🗑️ Apagar registo</button>
+      <button class="btn btn-ghost btn-full btn-sm" onclick="closeModal('modal-pat')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   ⚙️ SUPABASE CONFIG — LEO: PREENCHER AQUI
+   ═══════════════════════════════════════════════════
+   
+   1. Vai a supabase.com e cria uma conta gratuita
+   2. Cria um novo projecto (nome: consulta360-cristiane)
+   3. Vai a Settings → API
+   4. Copia o "Project URL" e o "anon public" key
+   5. Cola abaixo substituindo os placeholders
+   
+   DEPOIS cria a tabela no Supabase (SQL Editor):
+   
+   CREATE TABLE consultas (
+     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+     name TEXT NOT NULL,
+     age TEXT,
+     tipo TEXT DEFAULT 'base',
+     parent TEXT,
+     phone TEXT,
+     data JSONB DEFAULT '{}',
+     semaphores JSONB DEFAULT '{"1":"a","2":"r","3":"a","4":"g"}',
+     created_at TIMESTAMPTZ DEFAULT NOW(),
+     updated_at TIMESTAMPTZ DEFAULT NOW()
+   );
+   
+   ALTER TABLE consultas ENABLE ROW LEVEL SECURITY;
+   
+   CREATE POLICY "Users see own" ON consultas
+     FOR ALL USING (auth.uid() = user_id);
+   
+═══════════════════════════════════════════════════ */
+const SUPABASE_URL = 'https://XXXXXXXX.supabase.co';       // ← LEO: substituir
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6...';   // ← LEO: substituir (anon public key)
+
+/* ═══ INICIALIZAÇÃO ═══ */
+let supabase = null;
+let currentUser = null;
+let currentPatientId = null;
+let selectedPatientId = null;
+let allPatients = [];
+let autoSaveTimer = null;
+let recRecognition = null, fullTranscript = '', recSeconds = 0, recInterval = null, isRecording = false;
+let etSeconds = 0, etInterval = null, etRunning = false;
+let appMode = 'rec';
+let isConfigured = false;
+const semCfg = {g:{cls:'g',em:'🟢',st:'Sem alertas'},a:{cls:'a',em:'🟡',st:'Observar'},r:{cls:'r',em:'🔴',st:'Actuar'}};
+let curSems = {1:'a',2:'r',3:'a',4:'g'};
+
+const PAGES = ['page-list','page-setup','page-abertura','page-anam','page-exame','page-fecho','page-followup'];
+const PAGE_LABELS = ['Início','Setup','Abertura','Anamnese','Exame','Fecho','Follow-up'];
+let curPageIdx = 0;
+
+/* ═══ BOOT ═══ */
+window.addEventListener('load', async () => {
+  isConfigured = !SUPABASE_URL.includes('XXXXXXXX') && !SUPABASE_KEY.startsWith('eyJhbGci');
+  
+  if(!isConfigured) {
+    document.getElementById('config-notice').style.display = 'block';
+    // Demo mode — skip auth
+    demoMode();
+    return;
+  }
+  
+  try {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const { data: { session } } = await supabase.auth.getSession();
+    if(session) {
+      currentUser = session.user;
+      showApp();
+    } else {
+      document.getElementById('login-screen').classList.remove('hidden');
+    }
+    supabase.auth.onAuthStateChange((_event, session) => {
+      if(session) { currentUser = session.user; showApp(); }
+      else { showLogin(); }
+    });
+  } catch(e) {
+    console.error('Supabase init error:', e);
+    demoMode();
+  }
+});
+
+function demoMode() {
+  // Funciona sem Supabase — usa localStorage
+  currentUser = { email: 'demo@consulta360.pt', id: 'demo' };
+  document.getElementById('login-screen').style.display = 'none';
+  showApp(true);
+}
+
+/* ═══ AUTH ═══ */
+let loginMode = 'login';
+function toggleLoginMode() {
+  loginMode = loginMode === 'login' ? 'signup' : 'login';
+  const isSignup = loginMode === 'signup';
+  document.getElementById('login-btn').style.display = isSignup ? 'none' : 'block';
+  document.getElementById('signup-btn').style.display = isSignup ? 'block' : 'none';
+  document.getElementById('login-toggle').innerHTML = isSignup
+    ? 'Já tens conta? <span onclick="toggleLoginMode()">Entrar</span>'
+    : 'Ainda não tens conta? <span onclick="toggleLoginMode()">Criar agora</span>';
+}
+
+async function doLogin() {
+  if(!isConfigured) return;
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-password').value;
+  if(!email || !pass) { showLoginError('Preenche email e password.'); return; }
+  setLoginLoading(true);
+  const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+  setLoginLoading(false);
+  if(error) showLoginError('Email ou password incorrectos.');
+}
+
+async function doSignup() {
+  if(!isConfigured) return;
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-password').value;
+  if(!email || !pass) { showLoginError('Preenche email e password.'); return; }
+  if(pass.length < 6) { showLoginError('A password precisa de ter pelo menos 6 caracteres.'); return; }
+  setLoginLoading(true);
+  const { error } = await supabase.auth.signUp({ email, password: pass });
+  setLoginLoading(false);
+  if(error) showLoginError(error.message);
+  else showLoginError('✅ Conta criada! Verifica o teu email e entra.');
+}
+
+async function doLogout() {
+  closeModal('modal-user');
+  if(supabase) await supabase.auth.signOut();
+  else showLogin();
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg;
+  el.classList.add('visible');
+}
+function setLoginLoading(on) {
+  document.getElementById('login-loading').classList.toggle('visible', on);
+  document.getElementById('login-btn').style.display = on ? 'none' : 'block';
+}
+function showLogin() {
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('app-shell').style.display = 'none';
+  document.getElementById('fab').style.display = 'none';
+}
+
+/* ═══ APP INIT ═══ */
+async function showApp(demo = false) {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-shell').style.display = 'flex';
+  document.getElementById('fab').style.display = 'flex';
+  
+  const email = currentUser?.email || 'demo@consulta360.pt';
+  const name = email.split('@')[0];
+  document.getElementById('tb-user-name').textContent = name;
+  document.getElementById('modal-user-name').textContent = name;
+  document.getElementById('modal-user-email').textContent = email;
+  
+  setSyncBadge('syncing','A carregar...');
+  await loadPatients(demo);
+  renderList();
+  setSyncBadge('online', demo ? 'Modo demo (sem Supabase)' : 'Sincronizado · ' + email);
+  setMode('rec');
+  goPage('page-list');
+}
+
+/* ═══ SUPABASE DATA ═══ */
+async function loadPatients(demo = false) {
+  if(!isConfigured || demo) {
+    // localStorage fallback
+    const raw = localStorage.getItem('rc360_patients_v2') || '{}';
+    const db = JSON.parse(raw);
+    allPatients = Object.entries(db).map(([id,p]) => ({id,...p})).sort((a,b)=>(b.updated_at||0)-(a.updated_at||0));
+    return;
+  }
+  try {
+    const { data, error } = await supabase.from('consultas').select('*').eq('user_id', currentUser.id).order('updated_at', { ascending: false });
+    if(error) throw error;
+    allPatients = data || [];
+    setSyncBadge('online', `${allPatients.length} consultas · sincronizadas`);
+  } catch(e) {
+    console.error('Load error:', e);
+    setSyncBadge('offline', 'Erro de ligação · dados locais');
+    const raw = localStorage.getItem('rc360_patients_v2') || '{}';
+    allPatients = Object.values(JSON.parse(raw));
+  }
+}
+
+async function saveToSupabase(id, formData) {
+  if(!isConfigured || !supabase) {
+    const raw = localStorage.getItem('rc360_patients_v2') || '{}';
+    const db = JSON.parse(raw);
+    db[id] = { id, ...formData, updated_at: Date.now() };
+    localStorage.setItem('rc360_patients_v2', JSON.stringify(db));
+    setSaveState('saved');
+    return;
+  }
+  try {
+    setSaveState('saving');
+    const payload = {
+      id, user_id: currentUser.id,
+      name: formData.name || '', age: formData.age || '',
+      tipo: formData.tipo || 'base', parent: formData.parent || '',
+      phone: formData.phone || '',
+      semaphores: curSems,
+      data: formData,
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await supabase.from('consultas').upsert(payload, { onConflict: 'id' });
+    if(error) throw error;
+    setSaveState('saved');
+    // Update local cache
+    const idx = allPatients.findIndex(p => p.id === id);
+    if(idx >= 0) allPatients[idx] = { ...allPatients[idx], ...payload };
+    else allPatients.unshift({ ...payload });
+  } catch(e) {
+    console.error('Save error:', e);
+    setSaveState('error');
+    // Fallback to localStorage
+    const raw = localStorage.getItem('rc360_patients_v2') || '{}';
+    const db = JSON.parse(raw);
+    db[id] = { id, ...formData, updated_at: Date.now() };
+    localStorage.setItem('rc360_patients_v2', JSON.stringify(db));
+  }
+}
+
+async function deleteFromSupabase(id) {
+  allPatients = allPatients.filter(p => p.id !== id);
+  if(!isConfigured || !supabase) {
+    const raw = localStorage.getItem('rc360_patients_v2') || '{}';
+    const db = JSON.parse(raw);
+    delete db[id];
+    localStorage.setItem('rc360_patients_v2', JSON.stringify(db));
+    return;
+  }
+  await supabase.from('consultas').delete().eq('id', id).eq('user_id', currentUser.id);
+}
+
+/* ═══ AUTO-SAVE ═══ */
+function scheduleSave() {
+  setSaveState('saving');
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(doSave, 2000);
+}
+
+function setSaveState(s) {
+  const el = document.getElementById('save-ind');
+  if(!el) return;
+  const icon = document.getElementById('save-icon'), txt = document.getElementById('save-txt');
+  if(s==='saved'){el.className='tb-save saved';icon.textContent='✓';txt.textContent='Guardado';}
+  else if(s==='saving'){el.className='tb-save saving';icon.textContent='💾';txt.textContent='A guardar...';}
+  else if(s==='error'){el.className='tb-save';icon.textContent='⚠️';txt.textContent='Erro';}
+  else{el.className='tb-save';icon.textContent='💾';txt.textContent='Guardar';}
+}
+
+async function doSave() {
+  if(!currentPatientId) return;
+  await saveToSupabase(currentPatientId, collectFormData());
+}
+
+function manualSave() { doSave(); }
+
+function collectFormData() {
+  const G = id => { const e=document.getElementById(id); return e?e.value:''; };
+  const GI = id => { const e=document.getElementById(id); return e?e.textContent:''; };
+  const radios = {};
+  document.querySelectorAll('.rr[data-g]').forEach(r=>{const on=r.querySelector('.rp.on');if(on)radios[r.dataset.g]=on.textContent.trim();});
+  const checks = [];
+  document.querySelectorAll('.ci.checked .ci-text').forEach(el=>checks.push(el.textContent.trim()));
+  return {
+    name:G('s-name'),age:G('s-age'),tipo:G('s-tipo'),parent:G('s-parent'),phone:G('s-phone'),queixa:G('s-queixa'),
+    a1_q:G('a1-q'),a1_t:G('a1-t'),a1_tent:G('a1-tent'),a7_med:G('a7-med'),nota_ab:G('nota-ab'),
+    exame_nt:G('exame-nt'),cam1:G('cam1'),cam2:G('cam2'),
+    plano_e:G('plano-e'),plano_r:G('plano-r'),plano_a:G('plano-a'),
+    mf_bem:GI('mf-bem'),mf_preo:GI('mf-preo'),mf_falt:GI('mf-falt'),
+    np1:G('np1'),np2:G('np2'),np3:G('np3'),np4:G('np4'),
+    semaphores:{...curSems},wa:GI('wa-prev')||G('wa-prev'),
+    tarefa:G('tarefa'),proxima:G('proxima'),notas_eq:G('notas-eq'),
+    transcript:fullTranscript,mode:appMode,radios,checks
+  };
+}
+
+function restoreFormData(d) {
+  if(!d) return;
+  const S=(id,v)=>{const e=document.getElementById(id);if(e&&v!=null)e.value=v;};
+  const T=(id,v)=>{const e=document.getElementById(id);if(e&&v)e.textContent=v;};
+  // Use data field if from Supabase, otherwise direct
+  const fd = d.data || d;
+  S('s-name',fd.name||d.name);S('s-age',fd.age||d.age);S('s-parent',fd.parent||d.parent);
+  S('s-phone',fd.phone||d.phone);S('s-queixa',fd.queixa);
+  S('a1-q',fd.a1_q);S('a1-t',fd.a1_t);S('a1-tent',fd.a1_tent);S('a7-med',fd.a7_med);
+  S('nota-ab',fd.nota_ab);S('exame-nt',fd.exame_nt);
+  S('cam1',fd.cam1);S('cam2',fd.cam2);
+  S('plano-e',fd.plano_e);S('plano-r',fd.plano_r);S('plano-a',fd.plano_a);
+  T('mf-bem',fd.mf_bem);T('mf-preo',fd.mf_preo);T('mf-falt',fd.mf_falt);
+  S('np1',fd.np1);S('np2',fd.np2);S('np3',fd.np3);S('np4',fd.np4);
+  if(fd.wa){const el=document.getElementById('wa-prev');if(el)el.textContent=fd.wa;}
+  S('tarefa',fd.tarefa);S('proxima',fd.proxima);S('notas-eq',fd.notas_eq);
+  const sems = d.semaphores || fd.semaphores;
+  if(sems) { Object.entries(sems).forEach(([p,s])=>{curSems[p]=s;const row=document.querySelector(`[data-g="sem${p}"]`);if(row){row.querySelectorAll('.rp').forEach(b=>b.classList.remove('on'));const idx=s==='g'?0:s==='a'?1:2;if(row.children[idx])row.children[idx].classList.add('on');}updateMapaPilar(p,s,fd['np'+p]||'');});}
+  if(fd.radios){Object.entries(fd.radios).forEach(([g,val])=>{const row=document.querySelector(`[data-g="${g}"]`);if(!row)return;row.querySelectorAll('.rp').forEach(b=>{if(b.textContent.trim()===val)b.classList.add('on');});});}
+  if(fd.tipo){const el=document.getElementById('s-tipo');if(el)el.value=fd.tipo;}
+  if(fd.mode)setMode(fd.mode);
+  if(fd.transcript)fullTranscript=fd.transcript;
+}
+
+/* ═══ LIST RENDER ═══ */
+function renderList(filtered = null) {
+  const list = filtered || allPatients;
+  const el = document.getElementById('patient-list');
+  document.getElementById('stat-tot').textContent = allPatients.length;
+  document.getElementById('stat-red').textContent = allPatients.filter(p=>{const s=p.semaphores||{};return Object.values(s).includes('r');}).length;
+  document.getElementById('stat-grn').textContent = allPatients.filter(p=>{const s=p.semaphores||{};return !Object.values(s).includes('r')&&!Object.values(s).includes('a');}).length;
+
+  if(!list.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">🌿</div><div class="empty-title">${filtered!==null?'Nenhum resultado':'Nenhuma consulta ainda'}</div><div style="font-size:14px;color:var(--ink-l);margin-top:6px">${filtered!==null?'Tenta outra pesquisa':'Toca no + para iniciar'}</div></div>`;
+    return;
+  }
+  el.innerHTML = list.map(p => {
+    const fd = p.data || p;
+    const sems = p.semaphores || {};
+    const semHtml = Object.entries({1:'🦷',2:'🌬️',3:'📈',4:'⚙️'}).map(([k,icon])=>{const s=sems[k]||'a';const cls=s==='g'?'pg':s==='r'?'pr':'pa';const em=s==='g'?'🟢':s==='r'?'🔴':'🟡';return `<span class="psem ${cls}">${em} ${icon}</span>`;}).join('');
+    const init = (p.name||fd.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const upd = p.updated_at ? new Date(p.updated_at).toLocaleDateString('pt-PT',{day:'numeric',month:'short'}) : '—';
+    const name = p.name || fd.name || '—';
+    const meta = [p.age||fd.age, p.parent||fd.parent].filter(Boolean).join(' · ');
+    return `<div class="pcard" onclick="selectPat('${p.id}')"><div class="pcard-av">${init}</div><div class="pcard-info"><div class="pcard-name">${name}</div><div class="pcard-meta">${meta}</div><div class="pcard-sems">${semHtml}</div></div><div class="pcard-right"><div class="pcard-date">${upd}</div><div style="font-size:18px;color:var(--border)">›</div></div></div>`;
+  }).join('');
+}
+
+function filterPatients(q) {
+  if(!q.trim()) { renderList(); return; }
+  const fq = q.toLowerCase();
+  const filtered = allPatients.filter(p=>{
+    const fd = p.data||p;
+    return (p.name||fd.name||'').toLowerCase().includes(fq) || (p.parent||fd.parent||'').toLowerCase().includes(fq);
+  });
+  renderList(filtered);
+}
+
+function setSyncBadge(state, txt) {
+  const el = document.getElementById('sync-badge');
+  el.className = `sync-badge ${state}`;
+  document.getElementById('sync-txt').textContent = txt;
+}
+
+/* ═══ PATIENT ACTIONS ═══ */
+function selectPat(id) {
+  selectedPatientId = id;
+  const p = allPatients.find(x=>x.id===id);
+  if(!p) return;
+  const fd = p.data||p;
+  document.getElementById('mpat-name').textContent = p.name||fd.name||'—';
+  document.getElementById('mpat-meta').textContent = [p.age||fd.age, p.parent||fd.parent, (p.tipo||fd.tipo)==='plus'?'360 Plus':'360 Base'].filter(Boolean).join(' · ');
+  openModal('modal-pat');
+}
+
+function openPatient() {
+  closeModal('modal-pat');
+  currentPatientId = selectedPatientId;
+  const p = allPatients.find(x=>x.id===currentPatientId);
+  resetUI();
+  if(p) restoreFormData(p);
+  const fd = p?.data||p;
+  const name = p?.name||fd?.name||'—';
+  const age = p?.age||fd?.age||'';
+  document.getElementById('mapa-pname').textContent = name + (age?' · '+age:'');
+  document.getElementById('mapa-date').textContent = new Date().toLocaleDateString('pt-PT',{day:'numeric',month:'long',year:'numeric'}) + ' · Dra. Cristiane Martins';
+  goPage('page-abertura');
+}
+
+async function deletePatient() {
+  const p = allPatients.find(x=>x.id===selectedPatientId);
+  if(!confirm(`Apagar o registo de ${p?.name||p?.data?.name||'este paciente'}?`)) return;
+  await deleteFromSupabase(selectedPatientId);
+  closeModal('modal-pat');
+  renderList();
+}
+
+/* ═══ NEW CONSULTA ═══ */
+function newConsulta() {
+  currentPatientId = crypto.randomUUID ? crypto.randomUUID() : 'pat_'+Date.now();
+  resetUI();
+  goPage('page-setup');
+}
+
+function resetUI() {
+  document.querySelectorAll('.inp').forEach(el=>{if(el.tagName!=='SELECT')el.value='';});
+  document.querySelectorAll('.ci.checked').forEach(el=>el.classList.remove('checked'));
+  document.querySelectorAll('.rp.on').forEach(el=>el.classList.remove('on'));
+  document.querySelectorAll('.bc.flagged,.bc.ok').forEach(el=>{el.classList.remove('flagged','ok');});
+  ['cam1','cam2','plano-e','plano-r','plano-a'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  document.getElementById('mf-bem').textContent='— Preencher —';
+  document.getElementById('mf-preo').textContent='— Preencher —';
+  document.getElementById('mf-falt').textContent='— Preencher —';
+  document.getElementById('wa-prev').textContent='Olá [Nome] 🌿\n\nFoi um prazer conhecer a [criança] hoje.\n\nDra. Cristiane';
+  curSems={1:'a',2:'r',3:'a',4:'g'};
+  [1,2,3,4].forEach(p=>updateMapaPilar(p,curSems[p],''));
+  ['np1','np2','np3','np4'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  fullTranscript='';
+  stopRec();
+  document.getElementById('rtrans').innerHTML='<span style="color:rgba(255,255,255,.25);font-style:italic">Transcrição em tempo real...</span>';
+  document.getElementById('rec-acts').classList.remove('visible');
+  document.getElementById('ai-st').classList.remove('visible');
+  document.getElementById('rtimer').textContent='00:00';
+  resetET();
+  setMode('rec');
+}
+
+function startConsulta() {
+  const name = document.getElementById('s-name').value.trim();
+  if(!name){document.getElementById('s-name').style.borderColor='var(--red)';document.getElementById('s-name').focus();return;}
+  document.getElementById('s-name').style.borderColor='';
+  document.getElementById('mapa-pname').textContent = name + (document.getElementById('s-age').value?' · '+document.getElementById('s-age').value:'');
+  document.getElementById('mapa-date').textContent = new Date().toLocaleDateString('pt-PT',{day:'numeric',month:'long',year:'numeric'}) + ' · Dra. Cristiane Martins';
+  document.getElementById('rec-panel').style.display = appMode==='rec' ? 'block' : 'none';
+  saveToSupabase(currentPatientId, {name, age:document.getElementById('s-age').value, tipo:document.getElementById('s-tipo').value, parent:document.getElementById('s-parent').value, phone:document.getElementById('s-phone').value, semaphores:{...curSems}, created_at: new Date().toISOString()});
+  goPage('page-abertura');
+}
+
+function confirmHome() {
+  if(confirm('Sair? Os dados ficam guardados no Supabase.')) {
+    doSave().then(()=>{
+      currentPatientId=null;
+      loadPatients().then(()=>{ renderList(); goPage('page-list'); });
+    });
+  }
+}
+
+async function finishConsulta() {
+  await doSave();
+  await loadPatients();
+  currentPatientId=null;
+  renderList();
+  goPage('page-list');
+}
+
+/* ═══ NAVIGATION ═══ */
+function goPage(id) {
+  const idx = PAGES.indexOf(id);
+  if(idx<0) return;
+  PAGES.forEach(pid=>{const el=document.getElementById(pid);if(el)el.classList.remove('active');});
+  document.getElementById(id).classList.add('active');
+  curPageIdx=idx;
+  updateChrome();
+  document.getElementById('main-screen').scrollTop=0;
+}
+function nextPage(){if(curPageIdx<PAGES.length-1){scheduleSave();goPage(PAGES[curPageIdx+1]);}}
+function prevPage(){if(curPageIdx>1)goPage(PAGES[curPageIdx-1]);}
+
+function updateChrome() {
+  const isHome=curPageIdx===0, isSetup=curPageIdx===1;
+  document.getElementById('stabs').style.display=isHome||isSetup?'none':'flex';
+  document.getElementById('pbar').style.display=isHome||isSetup?'none':'block';
+  document.getElementById('bot-nav').classList.toggle('visible',!isHome&&!isSetup);
+  document.getElementById('btn-home').style.display=isHome?'none':'block';
+  document.getElementById('save-ind').style.display=isHome||isSetup?'none':'flex';
+  document.getElementById('fab').style.display=isHome?'flex':'none';
+  const total=PAGES.length-2, current=Math.max(0,curPageIdx-2);
+  document.getElementById('pfill').style.width=(total>0?(current/total)*100:0)+'%';
+  const tabs=document.getElementById('stabs');
+  tabs.innerHTML='';
+  for(let i=2;i<PAGES.length;i++){const t=document.createElement('div');t.className='st '+(i<curPageIdx?'done':i===curPageIdx?'active':'');t.textContent=PAGE_LABELS[i];t.onclick=()=>{scheduleSave();goPage(PAGES[i]);};tabs.appendChild(t);}
+  const nx=document.getElementById('btn-nx');
+  if(curPageIdx===PAGES.length-1){nx.textContent='✓ Concluir';nx.className='btn-next-nav finish';}
+  else{nx.textContent=(PAGE_LABELS[curPageIdx+1]||'')+'  →';nx.className='btn-next-nav';}
+  document.getElementById('btn-bk').style.visibility=curPageIdx<=2?'hidden':'visible';
+  if(currentPatientId){const p=allPatients.find(x=>x.id===currentPatientId);const fd=p?.data||p;document.getElementById('tb-sub').textContent=p?.name||fd?.name||'Consulta activa';}
+}
+
+/* ═══ RECORDING ═══ */
+function toggleRec(){isRecording?stopRec():startRec();}
+function startRec(){
+  isRecording=true;recSeconds=0;fullTranscript='';
+  document.getElementById('rbtn').className='rbtn recording';document.getElementById('rbtn').textContent='⏹';
+  document.getElementById('rdot').className='rdot active';document.getElementById('rlabel').textContent='A gravar...';
+  document.getElementById('rtrans').innerHTML='<span class="cursor"></span>';
+  document.getElementById('rec-acts').classList.remove('visible');
+  document.getElementById('ai-st').classList.remove('visible');
+  recInterval=setInterval(()=>{recSeconds++;document.getElementById('rtimer').textContent=String(Math.floor(recSeconds/60)).padStart(2,'0')+':'+String(recSeconds%60).padStart(2,'0');},1000);
+  if('SpeechRecognition'in window||'webkitSpeechRecognition'in window){
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    recRecognition=new SR();recRecognition.lang='pt-PT';recRecognition.continuous=true;recRecognition.interimResults=true;
+    recRecognition.onresult=e=>{let int='';for(let i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal)fullTranscript+=e.results[i][0].transcript+' ';else int+=e.results[i][0].transcript;}document.getElementById('rtrans').innerHTML=fullTranscript+'<span style="color:rgba(255,255,255,.4)">'+int+'</span><span class="cursor"></span>';};
+    recRecognition.onerror=()=>{};recRecognition.start();
+  } else {
+    const demo=['A mãe refere que a criança ressona todas as noites. ','Dorme de boca aberta e acorda sempre cansada. ','Dificuldades de concentração na escola. ','Amígdalas aumentadas avaliadas por ORL. '];
+    let di=0;const s=setInterval(()=>{if(!isRecording||di>=demo.length){clearInterval(s);return;}fullTranscript+=demo[di++];document.getElementById('rtrans').innerHTML=fullTranscript+'<span class="cursor"></span>';},2500);
+  }
+}
+function stopRec(){
+  isRecording=false;clearInterval(recInterval);
+  if(recRecognition){try{recRecognition.stop();}catch(e){}recRecognition=null;}
+  document.getElementById('rbtn').className='rbtn done';document.getElementById('rbtn').textContent='✓';
+  document.getElementById('rdot').className='rdot done';document.getElementById('rlabel').textContent='Gravação concluída';
+  document.getElementById('rec-acts').classList.add('visible');
+  fullTranscript=fullTranscript||document.getElementById('rtrans').innerText||'';
+}
+
+/* ═══ AI ANALYSIS ═══ */
+async function analyzeAI(){
+  const btn=document.getElementById('btn-ai');
+  const st=document.getElementById('ai-st');
+  btn.className='btn-ai';btn.style.opacity='.6';btn.textContent='🤖 A analisar...';
+  st.classList.add('visible');
+  const steps=['A processar transcrição...','A identificar padrões RC360...','A classificar pilares...','A preencher campos...','A gerar Mapa 360...'];
+  let si=0;const si2=setInterval(()=>{if(si<steps.length)st.textContent=steps[si++];},1800);
+  const pname=document.getElementById('s-name').value||'a criança';
+  const ppar=document.getElementById('s-parent').value||'os pais';
+  const trans=fullTranscript||'(sem transcrição)';
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:`Assistente clínico Dra. Cristiane Martins (RC360). Paciente: ${pname}. Responsável: ${ppar}. Transcrição: "${trans}". Responde APENAS JSON: {"queixa":"...","tempo":"...","semaforos":{"p1":"g|a|r","p2":"g|a|r","p3":"g|a|r","p4":"g|a|r"},"nota_p1":"...","nota_p2":"...","nota_p3":"...","nota_p4":"...","cam1":"O que observei (3-4 frases sem 'diagnóstico')","cam2":"O que significa (3-4 frases simples)","plano_e":"Essencial agora","plano_r":"Médio prazo","plano_a":"Acompanhar","mf_bem":"2 bullets curtos","mf_preo":"2 bullets curtos","mf_falt":"2 bullets curtos","wa":"WhatsApp para ${ppar} (informal, emojis moderados, sem diagnóstico, assina Dra. Cristiane)","tarefa":"7 noites tarefa"}`}]})});
+    clearInterval(si2);
+    const data=await res.json();
+    const r=JSON.parse(data.content[0].text.replace(/```json|```/g,'').trim());
+    applyAI(r);
+    st.textContent='✅ Campos preenchidos! Revê e ajusta.';
+    btn.textContent='✅ Concluído';btn.style.background='var(--sage)';btn.style.opacity='1';
+  }catch(e){
+    clearInterval(si2);
+    applyAI(getDemoAI(pname,ppar));
+    st.textContent='✅ Preenchido (modo demo).';
+    btn.textContent='✅ Concluído';btn.style.opacity='1';
+  }
+  scheduleSave();
+}
+
+function applyAI(r){
+  const S=(id,v)=>{const e=document.getElementById(id);if(e&&v)e.value=v;};
+  const T=(id,v)=>{const e=document.getElementById(id);if(e&&v)e.textContent=v;};
+  S('a1-q',r.queixa);S('a1-t',r.tempo);S('cam1',r.cam1);S('cam2',r.cam2);
+  S('plano-e',r.plano_e);S('plano-r',r.plano_r);S('plano-a',r.plano_a);
+  T('mf-bem',r.mf_bem);T('mf-preo',r.mf_preo);T('mf-falt',r.mf_falt);
+  if(r.wa){document.getElementById('wa-prev').textContent=r.wa;}
+  S('tarefa',r.tarefa);
+  if(r.semaforos){Object.entries({p1:1,p2:2,p3:3,p4:4}).forEach(([pk,n])=>{const s=r.semaforos[pk]||'a';setSemDirect(n,s);const ni=document.getElementById('np'+n);if(ni&&r['nota_p'+n]){ni.value=r['nota_p'+n];updateMapaNote(n,r['nota_p'+n]);}});}
+}
+
+function getDemoAI(name,parent){
+  return {queixa:`A ${parent} refere que a criança ressona e dorme de boca aberta. Acorda sempre cansada e tem dificuldades de concentração.`,tempo:"Desde os 3-4 anos",semaforos:{p1:'a',p2:'r',p3:'a',p4:'g'},nota_p1:"Palato estreito",nota_p2:"Respiração oral · ronco · sono não reparador",nota_p3:"Observar crescimento",nota_p4:"OK",cam1:`Observei que ${name} respira pela boca — tanto no exame como em repouso. Os lábios ficam abertos habitualmente.`,cam2:"A respiração oral persistente influencia o crescimento do palato e pode estar ligada ao sono agitado e ao cansaço.",plano_e:"1. Avaliação ORL urgente\n2. Biologics — triagem sono",plano_r:"1. Ortopedia funcional após ORL\n2. Avaliação postura Leonardo",plano_a:"1. Reavaliação 3 meses\n2. Monitorizar crescimento",mf_bem:"• Função oral sem alterações\n• Cooperação no exame",mf_preo:"• Respiração oral persistente\n• Sono não reparador",mf_falt:"• Resultado ORL\n• Registo sono Biologics",wa:`Olá ${parent} 🌿\n\nFoi um prazer conhecer ${name} hoje.\n\n🔴 Respiração — requer atenção\n🟡 Cavidade oral — observar\n🟢 Função oral — OK\n\n✅ Próximos passos:\n1️⃣ Marcar ORL esta semana\n2️⃣ Diário sono 7 noites\n3️⃣ Consulta Resultados marcada ✓\n\nQualquer dúvida, estou aqui 🙏\nDra. Cristiane`,tarefa:`Observar 7 noites se ${name} dorme de boca aberta. Tirar foto e enviar.`};
+}
+
+/* ═══ SEMAPHORES ═══ */
+function setSem(pilar,color,el){curSems[pilar]=color;if(el){el.closest('.rr').querySelectorAll('.rp').forEach(b=>b.classList.remove('on'));el.classList.add('on');}updateMapaPilar(pilar,color,document.getElementById('np'+pilar)?.value||'');scheduleSave();}
+function setSemDirect(pilar,color){curSems[pilar]=color;const row=document.querySelector(`[data-g="sem${pilar}"]`);if(row){row.querySelectorAll('.rp').forEach(b=>b.classList.remove('on'));const idx=color==='g'?0:color==='a'?1:2;if(row.children[idx])row.children[idx].classList.add('on');}updateMapaPilar(pilar,color,document.getElementById('np'+pilar)?.value||'');}
+function updateMapaPilar(pilar,color,note){const cfg=semCfg[color];const item=document.getElementById('mp'+pilar);if(item)item.className='mi '+cfg.cls;const em=document.getElementById('mp'+pilar+'-em');if(em)em.textContent=cfg.em;const st=document.getElementById('mp'+pilar+'-st');if(st)st.textContent=cfg.st;const nt=document.getElementById('mp'+pilar+'-nt');if(nt&&note)nt.textContent=note;}
+function updateMapaNote(pilar,note){const nt=document.getElementById('mp'+pilar+'-nt');if(nt)nt.textContent=note||'A definir';scheduleSave();}
+
+/* ═══ WA ═══ */
+async function generateWA(){
+  const el=document.getElementById('wa-prev');el.textContent='🤖 A gerar...';
+  const name=document.getElementById('s-name').value||'a criança';
+  const parent=document.getElementById('s-parent').value||'os pais';
+  const c1=document.getElementById('cam1')?.value||'';
+  const pe=document.getElementById('plano-e')?.value||'';
+  const semStr=Object.entries(curSems).map(([k,v])=>`Pilar ${k}: ${semCfg[v]?.st||v}`).join(', ');
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:`Mensagem WhatsApp calorosa para ${parent} da ${name}. Semáforos: ${semStr}. Resumo: ${c1}. Próximos passos: ${pe}. Regras: informal, emojis moderados, sem diagnóstico, assina Dra. Cristiane. Só a mensagem.`}]})});
+    const data=await res.json();el.textContent=data.content[0].text;
+  }catch(e){el.textContent=getDemoAI(name,parent).wa;}
+  scheduleSave();
+}
+function copyWA(){navigator.clipboard.writeText(document.getElementById('wa-prev').textContent).then(()=>{const b=event.target;b.textContent='✓ Copiado!';setTimeout(()=>b.textContent='📋 Copiar',2000);});}
+
+/* ═══ EXAM TIMER ═══ */
+function toggleET(){const btn=document.getElementById('ebtn');if(etRunning){clearInterval(etInterval);etRunning=false;btn.textContent='▶ Continuar';}else{etRunning=true;btn.textContent='⏸ Parar';etInterval=setInterval(()=>{etSeconds++;document.getElementById('etimer').textContent=String(Math.floor(etSeconds/60)).padStart(2,'0')+':'+String(etSeconds%60).padStart(2,'0');},1000);}}
+function resetET(){clearInterval(etInterval);etRunning=false;etSeconds=0;const e=document.getElementById('etimer');if(e)e.textContent='00:00';const b=document.getElementById('ebtn');if(b)b.textContent='▶ Start';}
+
+/* ═══ UI HELPERS ═══ */
+function ci(el){el.classList.toggle('checked');scheduleSave();}
+function rp(el){el.closest('.rr').querySelectorAll('.rp').forEach(b=>b.classList.remove('on'));el.classList.add('on');scheduleSave();}
+function toggleB(id){const el=document.getElementById(id);if(el.classList.contains('flagged')){el.classList.remove('flagged');el.classList.add('ok');}else if(el.classList.contains('ok')){el.classList.remove('ok');}else{el.classList.add('flagged');}scheduleSave();}
+function setMode(m){appMode=m;['rec','manual'].forEach(id=>{const el=document.getElementById('mode-'+id);if(!el)return;if(id===m){el.style.border='2px solid var(--gold)';el.style.background='var(--gold-bg)';}else{el.style.border='1.5px solid var(--border)';el.style.background='#fff';}});}
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+/* ═══ AUTO-SAVE ON INPUT ═══ */
+document.addEventListener('input',e=>{if(currentPatientId&&e.target.matches('.inp,.cam-inp,.fase textarea'))scheduleSave();});
+</script>
+</body>
+</html>
