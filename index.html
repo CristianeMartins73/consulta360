@@ -789,8 +789,8 @@ body{background:var(--cream);color:var(--ink);font-size:16px;line-height:1.6;ove
      FOR ALL USING (auth.uid() = user_id);
    
 ═══════════════════════════════════════════════════ */
-const SUPABASE_URL = 'https://XXXXXXXX.supabase.co';       // ← LEO: substituir
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6...';   // ← LEO: substituir (anon public key)
+const SUPABASE_URL = 'https://gtllrdxveaqlbnwdnhoq.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd0bGxyZHh2ZWFxbGJud2RuaG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2NDAwMzEsImV4cCI6MjA5MTIxNjAzMX0.IFbQvpyB_F9AgTRlvuTicLozb6nhsGIIfHKz94tqIf8';
 
 /* ═══ INICIALIZAÇÃO ═══ */
 let supabase = null;
@@ -1269,10 +1269,20 @@ async function analyzeAI(){
   const ppar=document.getElementById('s-parent').value||'os pais';
   const trans=fullTranscript||'(sem transcrição)';
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:`Assistente clínico Dra. Cristiane Martins (RC360). Paciente: ${pname}. Responsável: ${ppar}. Transcrição: "${trans}". Responde APENAS JSON: {"queixa":"...","tempo":"...","semaforos":{"p1":"g|a|r","p2":"g|a|r","p3":"g|a|r","p4":"g|a|r"},"nota_p1":"...","nota_p2":"...","nota_p3":"...","nota_p4":"...","cam1":"O que observei (3-4 frases sem 'diagnóstico')","cam2":"O que significa (3-4 frases simples)","plano_e":"Essencial agora","plano_r":"Médio prazo","plano_a":"Acompanhar","mf_bem":"2 bullets curtos","mf_preo":"2 bullets curtos","mf_falt":"2 bullets curtos","wa":"WhatsApp para ${ppar} (informal, emojis moderados, sem diagnóstico, assina Dra. Cristiane)","tarefa":"7 noites tarefa"}`}]})});
+    const res=await fetch('/api/claude',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        mode:'analyze',
+        patientName:pname,
+        parentName:ppar,
+        transcript:trans
+      })
+    });
+    if(!res.ok) throw new Error('Falha na API Claude');
     clearInterval(si2);
     const data=await res.json();
-    const r=JSON.parse(data.content[0].text.replace(/```json|```/g,'').trim());
+    const r=JSON.parse((data.text||'').replace(/```json|```/g,'').trim());
     applyAI(r);
     st.textContent='✅ Campos preenchidos! Revê e ajusta.';
     btn.textContent='✅ Concluído';btn.style.background='var(--sage)';btn.style.opacity='1';
@@ -1315,8 +1325,21 @@ async function generateWA(){
   const pe=document.getElementById('plano-e')?.value||'';
   const semStr=Object.entries(curSems).map(([k,v])=>`Pilar ${k}: ${semCfg[v]?.st||v}`).join(', ');
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:`Mensagem WhatsApp calorosa para ${parent} da ${name}. Semáforos: ${semStr}. Resumo: ${c1}. Próximos passos: ${pe}. Regras: informal, emojis moderados, sem diagnóstico, assina Dra. Cristiane. Só a mensagem.`}]})});
-    const data=await res.json();el.textContent=data.content[0].text;
+    const res=await fetch('/api/claude',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        mode:'whatsapp',
+        patientName:name,
+        parentName:parent,
+        semaphoresSummary:semStr,
+        summaryText:c1,
+        nextSteps:pe
+      })
+    });
+    if(!res.ok) throw new Error('Falha na API Claude');
+    const data=await res.json();
+    el.textContent=data.text;
   }catch(e){el.textContent=getDemoAI(name,parent).wa;}
   scheduleSave();
 }
