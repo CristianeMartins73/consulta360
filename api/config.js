@@ -5,8 +5,9 @@ module.exports = (req, res) => {
     return;
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_ANON_KEY;
+  const clean = (v) => (v || "").replace(/\s+/g, "");
+  const supabaseUrl = clean(process.env.SUPABASE_URL);
+  const supabaseKey = clean(process.env.SUPABASE_ANON_KEY);
 
   if (!supabaseUrl || !supabaseKey) {
     res.statusCode = 500;
