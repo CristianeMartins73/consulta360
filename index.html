@@ -794,7 +794,7 @@ let SUPABASE_URL = '';
 let SUPABASE_KEY = '';
 
 /* ═══ INICIALIZAÇÃO ═══ */
-let supabase = null;
+let sb = null;
 let currentUser = null;
 let currentPatientId = null;
 let selectedPatientId = null;
@@ -832,15 +832,15 @@ window.addEventListener('load', async () => {
   }
 
   try {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    const { data: { session } } = await supabase.auth.getSession();
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const { data: { session } } = await sb.auth.getSession();
     if(session) {
       currentUser = session.user;
       showApp();
     } else {
       document.getElementById('login-screen').classList.remove('hidden');
     }
-    supabase.auth.onAuthStateChange((_event, session) => {
+    sb.auth.onAuthStateChange((_event, session) => {
       if(session) { currentUser = session.user; showApp(); }
       else { showLogin(); }
     });
@@ -875,7 +875,7 @@ async function doLogin() {
   const pass = document.getElementById('login-password').value;
   if(!email || !pass) { showLoginError('Preenche email e password.'); return; }
   setLoginLoading(true);
-  const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
   setLoginLoading(false);
   if(error) showLoginError('Email ou password incorrectos.');
 }
@@ -887,7 +887,7 @@ async function doSignup() {
   if(!email || !pass) { showLoginError('Preenche email e password.'); return; }
   if(pass.length < 6) { showLoginError('A password precisa de ter pelo menos 6 caracteres.'); return; }
   setLoginLoading(true);
-  const { error } = await supabase.auth.signUp({ email, password: pass });
+  const { error } = await sb.auth.signUp({ email, password: pass });
   setLoginLoading(false);
   if(error) showLoginError(error.message);
   else showLoginError('✅ Conta criada! Verifica o teu email e entra.');
@@ -895,7 +895,7 @@ async function doSignup() {
 
 async function doLogout() {
   closeModal('modal-user');
-  if(supabase) await supabase.auth.signOut();
+  if(sb) await sb.auth.signOut();
   else showLogin();
 }
 
@@ -944,7 +944,7 @@ async function loadPatients(demo = false) {
     return;
   }
   try {
-    const { data, error } = await supabase.from('consultas').select('*').eq('user_id', currentUser.id).order('updated_at', { ascending: false });
+    const { data, error } = await sb.from('consultas').select('*').eq('user_id', currentUser.id).order('updated_at', { ascending: false });
     if(error) throw error;
     allPatients = data || [];
     setSyncBadge('online', `${allPatients.length} consultas · sincronizadas`);
@@ -957,7 +957,7 @@ async function loadPatients(demo = false) {
 }
 
 async function saveToSupabase(id, formData) {
-  if(!isConfigured || !supabase) {
+  if(!isConfigured || !sb) {
     const raw = localStorage.getItem('rc360_patients_v2') || '{}';
     const db = JSON.parse(raw);
     db[id] = { id, ...formData, updated_at: Date.now() };
@@ -976,7 +976,7 @@ async function saveToSupabase(id, formData) {
       data: formData,
       updated_at: new Date().toISOString()
     };
-    const { error } = await supabase.from('consultas').upsert(payload, { onConflict: 'id' });
+    const { error } = await sb.from('consultas').upsert(payload, { onConflict: 'id' });
     if(error) throw error;
     setSaveState('saved');
     // Update local cache
@@ -996,14 +996,14 @@ async function saveToSupabase(id, formData) {
 
 async function deleteFromSupabase(id) {
   allPatients = allPatients.filter(p => p.id !== id);
-  if(!isConfigured || !supabase) {
+  if(!isConfigured || !sb) {
     const raw = localStorage.getItem('rc360_patients_v2') || '{}';
     const db = JSON.parse(raw);
     delete db[id];
     localStorage.setItem('rc360_patients_v2', JSON.stringify(db));
     return;
   }
-  await supabase.from('consultas').delete().eq('id', id).eq('user_id', currentUser.id);
+  await sb.from('consultas').delete().eq('id', id).eq('user_id', currentUser.id);
 }
 
 /* ═══ AUTO-SAVE ═══ */
